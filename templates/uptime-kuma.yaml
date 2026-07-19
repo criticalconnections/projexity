@@ -2,7 +2,7 @@ id: uptime-kuma
 name: Uptime Kuma
 description: Beautiful self-hosted uptime monitoring with status pages and alerts.
 category: monitoring
-icon: "📈"
+icon: "/app-icons/uptime-kuma.svg"
 website: https://uptime.kuma.pet
 env: []
 web:

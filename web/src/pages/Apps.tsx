@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
+import { ArrowUpRight, Globe, Trash2, X } from "lucide-react";
 import {
   api,
   ApiError,
@@ -9,6 +10,8 @@ import {
   type AppInstall,
   type CatalogEntry,
 } from "../api";
+import { AppIcon } from "../components/AppIcon";
+import { StepIcon } from "../components/StepIcon";
 import { timeAgo } from "../time";
 
 /** One-click apps: installed apps with live install progress on top, the
@@ -39,7 +42,7 @@ export function AppsPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Apps</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Apps</h1>
           <p className="mt-1 text-sm text-zinc-500">
             One-click open-source apps, installed straight onto your servers.
           </p>
@@ -48,7 +51,7 @@ export function AppsPage() {
 
       {hasApps && (
         <section className="mt-8">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500">
+          <h2 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
             Installed
           </h2>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
@@ -66,7 +69,7 @@ export function AppsPage() {
       )}
 
       <section className="mt-10">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-500">
+        <h2 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
           Catalog
         </h2>
         {!hasApps && !appsLoading && (
@@ -100,11 +103,30 @@ export function AppsPage() {
 
 /* ---------- installed apps ---------- */
 
-const APP_STATUS_STYLES: Record<AppInstall["status"], string> = {
-  running: "bg-emerald-500/10 text-emerald-400",
-  installing: "bg-amber-500/10 text-amber-400 animate-pulse",
-  error: "bg-red-500/10 text-red-400",
-  removing: "bg-zinc-500/10 text-zinc-400 animate-pulse",
+const APP_STATUS_STYLES: Record<
+  AppInstall["status"],
+  { pill: string; dot: string; active: boolean }
+> = {
+  running: {
+    pill: "border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
+    dot: "bg-emerald-400",
+    active: false,
+  },
+  installing: {
+    pill: "border-amber-500/25 bg-amber-500/10 text-amber-300",
+    dot: "bg-amber-400",
+    active: true,
+  },
+  error: {
+    pill: "border-red-500/25 bg-red-500/10 text-red-300",
+    dot: "bg-red-400",
+    active: false,
+  },
+  removing: {
+    pill: "border-white/10 bg-white/[0.04] text-zinc-400",
+    dot: "bg-zinc-500",
+    active: true,
+  },
 };
 
 const APP_STATUS_LABELS: Record<AppInstall["status"], string> = {
@@ -113,6 +135,27 @@ const APP_STATUS_LABELS: Record<AppInstall["status"], string> = {
   error: "install failed",
   removing: "removing…",
 };
+
+function AppStatusPill({ status }: { status: AppInstall["status"] }) {
+  const s = APP_STATUS_STYLES[status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${s.pill}`}
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {s.active && (
+          <span
+            className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${s.dot}`}
+          />
+        )}
+        <span
+          className={`relative inline-flex h-1.5 w-1.5 rounded-full ${s.dot}`}
+        />
+      </span>
+      {APP_STATUS_LABELS[status]}
+    </span>
+  );
+}
 
 function InstalledCard({
   app,
@@ -138,26 +181,22 @@ function InstalledCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5"
+      className="card p-5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="text-2xl" aria-hidden>
-            {template?.icon ?? "📦"}
-          </span>
+          <AppIcon icon={template?.icon} name={app.name} size="md" />
           <div className="min-w-0">
-            <h3 className="truncate font-medium text-zinc-100">{app.name}</h3>
+            <h3 className="truncate font-medium tracking-tight text-zinc-100">
+              {app.name}
+            </h3>
             <p className="mt-0.5 text-xs text-zinc-500">
               {template?.name ?? app.template_id} · installed{" "}
               {timeAgo(app.created_at)}
             </p>
           </div>
         </div>
-        <span
-          className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${APP_STATUS_STYLES[app.status]}`}
-        >
-          {APP_STATUS_LABELS[app.status]}
-        </span>
+        <AppStatusPill status={app.status} />
       </div>
 
       {domains.length > 0 && (
@@ -168,20 +207,20 @@ function InstalledCard({
               href={`https://${hostname}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1 text-xs text-emerald-400 transition hover:border-emerald-500/40"
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 font-mono text-xs text-emerald-400 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
             >
+              <Globe className="h-3 w-3" strokeWidth={1.75} />
               {hostname}
-              <span aria-hidden>↗</span>
             </a>
           ))}
         </div>
       )}
 
       {app.status === "installing" && steps.length > 0 && (
-        <div className="mt-4 space-y-1.5 rounded-lg border border-zinc-800/70 bg-zinc-950/40 p-3">
+        <div className="mt-4 space-y-1.5 rounded-lg border border-white/[0.06] bg-black/30 p-3">
           {steps.map((s) => (
             <div key={s.id} className="flex items-center gap-2 text-xs">
-              <StepIcon status={s.status} />
+              <StepIcon status={s.status} size="sm" />
               <span
                 className={
                   s.status === "pending" ? "text-zinc-600" : "text-zinc-300"
@@ -190,7 +229,7 @@ function InstalledCard({
                 {s.label}
               </span>
               {s.status === "running" && s.detail && (
-                <span className="min-w-0 truncate text-zinc-500">
+                <span className="min-w-0 truncate font-mono text-zinc-500">
                   {s.detail}
                 </span>
               )}
@@ -218,39 +257,14 @@ function InstalledCard({
               }
             }}
             disabled={uninstall.isPending}
-            className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-zinc-500 transition hover:border-red-500/40 hover:text-red-400 disabled:opacity-40"
+            className="btn-danger-ghost text-xs"
           >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
             {uninstall.isPending ? "Removing…" : "Uninstall"}
           </button>
         </div>
       )}
     </motion.div>
-  );
-}
-
-function StepIcon({ status }: { status: string }) {
-  if (status === "done" || status === "skipped")
-    return (
-      <span className="flex h-4 w-4 flex-none items-center justify-center rounded-full bg-emerald-500/15 text-[10px] text-emerald-400">
-        ✓
-      </span>
-    );
-  if (status === "failed")
-    return (
-      <span className="flex h-4 w-4 flex-none items-center justify-center rounded-full bg-red-500/15 text-[10px] text-red-400">
-        ✕
-      </span>
-    );
-  if (status === "running")
-    return (
-      <span className="flex h-4 w-4 flex-none items-center justify-center">
-        <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400" />
-      </span>
-    );
-  return (
-    <span className="flex h-4 w-4 flex-none items-center justify-center text-zinc-700">
-      ○
-    </span>
   );
 }
 
@@ -269,25 +283,25 @@ function CatalogCard({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.25, ease: "easeOut" }}
-      className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 transition-colors hover:border-zinc-700"
+      transition={{ delay: index * 0.03, duration: 0.25, ease: "easeOut" }}
+      className="card card-hover group flex flex-col p-5"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="text-3xl" aria-hidden>
-          {entry.icon}
-        </span>
-        <span className="rounded-full bg-zinc-800/80 px-2.5 py-1 text-[11px] font-medium text-zinc-400">
+        <AppIcon icon={entry.icon} name={entry.name} size="lg" />
+        <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
           {entry.category}
         </span>
       </div>
-      <h3 className="mt-3 font-medium text-zinc-100">{entry.name}</h3>
+      <h3 className="mt-3 font-medium tracking-tight text-zinc-100">
+        {entry.name}
+      </h3>
       <p className="mt-1 line-clamp-2 text-sm text-zinc-500">
         {entry.description}
       </p>
       <div className="mt-4 flex flex-1 items-end justify-between">
         <button
           onClick={onInstall}
-          className="rounded-md bg-emerald-600 px-3.5 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-500"
+          className="btn-primary px-3.5 py-1.5 opacity-80 transition-opacity group-hover:opacity-100"
         >
           Install
         </button>
@@ -295,9 +309,10 @@ function CatalogCard({
           href={entry.website}
           target="_blank"
           rel="noreferrer"
-          className="text-xs text-zinc-500 transition hover:text-zinc-300"
+          className="inline-flex items-center gap-0.5 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
         >
-          website ↗
+          website
+          <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
         </a>
       </div>
     </motion.div>
@@ -365,35 +380,36 @@ function InstallDialog({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        initial={{ opacity: 0, scale: 0.98, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        exit={{ opacity: 0, scale: 0.98, y: 8 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl"
+        className="card max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border-white/[0.08] bg-[#111113] p-6 shadow-2xl shadow-black/60"
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl" aria-hidden>
-              {template.icon}
-            </span>
+            <AppIcon icon={template.icon} name={template.name} size="md" />
             <div>
-              <h2 className="text-lg font-semibold text-zinc-100">
+              <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
                 Install {template.name}
               </h2>
-              <p className="text-xs text-zinc-500">{template.category}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                {template.category}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+            title="Close"
+            className="btn-ghost px-1.5 py-1.5"
           >
-            ✕
+            <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
 
@@ -410,7 +426,7 @@ function InstallDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={template.name}
-              className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-emerald-500"
+              className="input mt-1"
             />
           </Field>
 
@@ -431,7 +447,7 @@ function InstallDialog({
                 value={targetId}
                 onChange={(e) => setTargetId(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-emerald-500"
+                className="input mt-1"
               >
                 {readyTargets.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -461,7 +477,7 @@ function InstallDialog({
                 required={f.required}
                 spellCheck={false}
                 autoComplete="off"
-                className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-emerald-500"
+                className="input mt-1 font-mono"
               />
             </Field>
           ))}
@@ -469,17 +485,13 @@ function InstallDialog({
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm text-zinc-400 transition hover:text-zinc-200"
-            >
+            <button type="button" onClick={onClose} className="btn-ghost px-4 py-2">
               Cancel
             </button>
             <button
               type="submit"
               disabled={install.isPending || readyTargets.length === 0}
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
+              className="btn-primary"
             >
               {install.isPending ? "Installing…" : "Install"}
             </button>

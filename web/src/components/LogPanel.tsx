@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import gsap from "gsap";
 
 export interface SseLog {
   lines: string[];
@@ -77,46 +78,108 @@ export function useSseLog(
   return { lines, error, ended, connecting };
 }
 
-/** Scrollable dark mono log panel. Auto-scrolls to the bottom on new lines
- * unless the user has scrolled up to read something. */
+/** Scrollable dark mono log panel with terminal chrome. Auto-scrolls to the
+ * bottom on new lines unless the user has scrolled up to read something. */
 export function LogPanel({
   lines,
   connecting,
   error,
   emptyText = "Waiting for output…",
+  title = "output",
+  live = false,
 }: {
   lines: string[];
   connecting?: boolean;
   error?: string | null;
   emptyText?: string;
+  /** Mono title shown in the terminal header bar. */
+  title?: string;
+  /** Shows a pulsing "streaming" indicator in the header bar. */
+  live?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
+  const animatedCountRef = useRef(0);
 
   useEffect(() => {
     const el = boxRef.current;
     if (el && stickRef.current) el.scrollTop = el.scrollHeight;
   }, [lines.length, error]);
 
+  // Animate freshly appended lines in (opacity 0→1, x -4→0). Purely visual;
+  // skipped for large bursts and when the user prefers reduced motion.
+  useEffect(() => {
+    const el = boxRef.current;
+    const prev = animatedCountRef.current;
+    animatedCountRef.current = lines.length;
+    if (!el || lines.length <= prev) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const fresh = Array.from(el.querySelectorAll("[data-log-line]")).slice(
+      prev,
+    );
+    if (fresh.length === 0 || fresh.length > 40) return;
+    gsap.fromTo(
+      fresh,
+      { opacity: 0, x: -4 },
+      {
+        opacity: 1,
+        x: 0,
+        duration: 0.12,
+        ease: "power1.out",
+        stagger: 0.015,
+        overwrite: true,
+        clearProps: "opacity,transform",
+      },
+    );
+  }, [lines.length]);
+
   return (
-    <div
-      ref={boxRef}
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        stickRef.current =
-          el.scrollHeight - el.scrollTop - el.clientHeight < 32;
-      }}
-      className="max-h-[380px] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-300"
-    >
-      {lines.length === 0 && !error && (
-        <p className="text-zinc-600">{connecting ? "Connecting…" : emptyText}</p>
-      )}
-      {lines.map((line, i) => (
-        <div key={i} className="whitespace-pre-wrap break-all">
-          {line || " "}
-        </div>
-      ))}
-      {error && <p className="mt-2 text-red-400">{error}</p>}
+    <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b0b0d] shadow-lg shadow-black/40">
+      {/* terminal chrome */}
+      <div className="flex items-center gap-3 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2">
+        <span className="flex gap-1.5" aria-hidden>
+          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+          <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+        </span>
+        <span className="min-w-0 truncate font-mono text-[11px] text-zinc-500">
+          {title}
+        </span>
+        {live && (
+          <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            streaming
+          </span>
+        )}
+      </div>
+      <div
+        ref={boxRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stickRef.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+        }}
+        className="max-h-[380px] overflow-y-auto p-4 font-mono text-[12.5px] leading-relaxed text-zinc-300"
+      >
+        {lines.length === 0 && !error && (
+          <p className="text-zinc-600">
+            {connecting ? "Connecting…" : emptyText}
+          </p>
+        )}
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            data-log-line
+            className="-mx-2 whitespace-pre-wrap break-all rounded px-2 hover:bg-white/[0.02]"
+          >
+            {line || " "}
+          </div>
+        ))}
+        {error && <p className="mt-2 text-red-400">{error}</p>}
+      </div>
     </div>
   );
 }

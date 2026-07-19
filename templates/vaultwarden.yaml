@@ -2,7 +2,7 @@ id: vaultwarden
 name: Vaultwarden
 description: Lightweight Bitwarden-compatible password manager server.
 category: security
-icon: "🔐"
+icon: "/app-icons/vaultwarden.svg"
 website: https://github.com/dani-garcia/vaultwarden
 env:
   - key: ADMIN_TOKEN

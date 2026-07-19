@@ -2,7 +2,7 @@ id: n8n
 name: n8n
 description: Workflow automation with 400+ integrations — the self-hosted Zapier alternative.
 category: automation
-icon: "🔁"
+icon: "/app-icons/n8n.png"
 website: https://n8n.io
 env:
   - key: N8N_ENCRYPTION_KEY

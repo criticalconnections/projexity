@@ -3,6 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  ArrowLeft,
+  Check,
+  Globe,
+  Plus,
+  Rocket,
+  RotateCcw,
+  Terminal,
+  Trash2,
+  X,
+} from "lucide-react";
+import {
   api,
   ApiError,
   deploymentLogsUrl,
@@ -95,7 +106,12 @@ export function ProjectDetailPage({ id }: { id: string }) {
   });
 
   if (projectQuery.isLoading) {
-    return <p className="text-sm text-zinc-500">Loading…</p>;
+    return (
+      <div className="flex items-center gap-3 text-sm text-zinc-500">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/10 border-t-emerald-400" />
+        Loading…
+      </div>
+    );
   }
   if (!project) {
     return (
@@ -103,9 +119,10 @@ export function ProjectDetailPage({ id }: { id: string }) {
         <p className="text-zinc-300">This project doesn't exist (anymore).</p>
         <Link
           to="/"
-          className="mt-3 inline-block text-sm text-emerald-400 hover:underline"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:underline"
         >
-          ← Back to projects
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Back to projects
         </Link>
       </div>
     );
@@ -115,8 +132,15 @@ export function ProjectDetailPage({ id }: { id: string }) {
 
   return (
     <div>
-      <Link to="/" className="text-sm text-zinc-500 hover:text-zinc-300">
-        ← Projects
+      <Link
+        to="/"
+        className="group inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-300"
+      >
+        <ArrowLeft
+          className="h-3.5 w-3.5 transition-transform duration-150 group-hover:-translate-x-0.5"
+          strokeWidth={1.75}
+        />
+        Projects
       </Link>
 
       {/* header */}
@@ -128,20 +152,21 @@ export function ProjectDetailPage({ id }: { id: string }) {
             </h1>
             <StatusPill status={latest?.status ?? null} />
           </div>
-          <p className="mt-1 font-mono text-sm text-zinc-500">
+          <p className="mt-1 font-mono text-[13px] text-zinc-500">
             {project.image ?? "no image"} · port {project.container_port}
           </p>
           {project.domains.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <div className="mt-2.5 flex flex-wrap gap-2">
               {project.domains.map((d) => (
                 <a
                   key={d}
                   href={`https://${d}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm text-emerald-400 hover:underline"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1 font-mono text-xs text-emerald-400 transition-colors hover:border-emerald-500/40 hover:text-emerald-300"
                 >
-                  {d} ↗
+                  <Globe className="h-3 w-3" strokeWidth={1.75} />
+                  {d}
                 </a>
               ))}
             </div>
@@ -151,8 +176,9 @@ export function ProjectDetailPage({ id }: { id: string }) {
           <button
             onClick={() => deploy.mutate()}
             disabled={deploy.isPending || latestActive}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
+            className="btn-primary"
           >
+            <Rocket className="h-4 w-4" strokeWidth={1.75} />
             {latestActive
               ? "Deploying…"
               : deploy.isPending
@@ -170,9 +196,10 @@ export function ProjectDetailPage({ id }: { id: string }) {
               }
             }}
             disabled={remove.isPending}
-            className="rounded-md border border-zinc-800 px-4 py-2 text-sm text-zinc-500 transition hover:border-red-500/40 hover:text-red-400 disabled:opacity-40"
+            title="Delete project"
+            className="btn-danger-ghost px-3 py-2"
           >
-            Delete project
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
       </div>
@@ -216,15 +243,23 @@ export function ProjectDetailPage({ id }: { id: string }) {
                 </div>
                 <button
                   onClick={() => setLogId(null)}
-                  className="rounded-md px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+                  className="btn-ghost px-2 py-1 text-xs"
                 >
-                  Hide log ✕
+                  Hide log
+                  <X className="h-3.5 w-3.5" strokeWidth={1.75} />
                 </button>
               </div>
               <LogPanel
                 lines={log.lines}
                 connecting={log.connecting}
                 error={log.error}
+                title={`deploy · ${
+                  (logDeployment ?? latest)?.release_spec.release_id.slice(
+                    0,
+                    8,
+                  ) ?? logId.slice(0, 8)
+                }`}
+                live={!log.ended && !log.error}
               />
               {log.ended && (
                 <p className="mt-2 text-xs text-zinc-500">
@@ -238,7 +273,7 @@ export function ProjectDetailPage({ id }: { id: string }) {
       </AnimatePresence>
 
       {/* tabs */}
-      <div className="mt-8 flex gap-1 border-b border-zinc-800">
+      <div className="mt-8 flex gap-1 border-b border-white/[0.06]">
         {(
           [
             ["deployments", "Deployments"],
@@ -249,13 +284,18 @@ export function ProjectDetailPage({ id }: { id: string }) {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm transition ${
-              tab === key
-                ? "border-emerald-500 text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            className={`relative -mb-px px-4 py-2.5 text-sm transition-colors duration-150 ${
+              tab === key ? "text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             {label}
+            {tab === key && (
+              <motion.span
+                layoutId="project-tab-underline"
+                className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-emerald-400"
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              />
+            )}
           </button>
         ))}
       </div>
@@ -304,23 +344,23 @@ function DeploymentList({
     );
   }
   return (
-    <div className="divide-y divide-zinc-800/70 rounded-xl border border-zinc-800 bg-zinc-900/40">
+    <div className="card divide-y divide-white/[0.04]">
       {deployments.map((d) => (
         <button
           key={d.id}
           onClick={() => onSelect(d.id)}
-          className={`flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left text-sm transition hover:bg-zinc-900/70 ${
-            d.id === selectedId ? "bg-zinc-900/70" : ""
+          className={`group flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left text-sm transition-colors duration-150 first:rounded-t-xl last:rounded-b-xl hover:bg-white/[0.03] ${
+            d.id === selectedId ? "bg-white/[0.03]" : ""
           }`}
         >
-          <span className="w-20 font-mono text-zinc-300">
+          <span className="chip-mono w-20 text-center">
             {d.release_spec.release_id.slice(0, 8)}
           </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-zinc-500">
+          <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-zinc-500">
             {d.release_spec.image}
           </span>
           {d.kind === "rollback" && (
-            <span className="rounded bg-zinc-500/10 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+            <span className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
               rollback
             </span>
           )}
@@ -338,10 +378,11 @@ function DeploymentList({
                   if (!rollbackBusy) onRollback(d.id);
                 }
               }}
-              className={`rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300 ${
+              className={`inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-xs text-zinc-300 opacity-0 transition-all duration-150 focus:opacity-100 group-hover:opacity-100 hover:border-emerald-500/60 hover:text-emerald-300 ${
                 rollbackBusy ? "pointer-events-none opacity-40" : ""
               }`}
             >
+              <RotateCcw className="h-3 w-3" strokeWidth={1.75} />
               Roll back
             </span>
           )}
@@ -410,7 +451,7 @@ function EnvEditor({ projectId }: { projectId: string }) {
                 placeholder="KEY"
                 spellCheck={false}
                 autoComplete="off"
-                className="w-52 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+                className="input w-52 font-mono"
               />
               <input
                 value={row.value}
@@ -420,14 +461,14 @@ function EnvEditor({ projectId }: { projectId: string }) {
                 placeholder="value"
                 spellCheck={false}
                 autoComplete="off"
-                className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-emerald-500"
+                className="input min-w-0 flex-1 font-mono"
               />
               <button
                 onClick={() => edit(rows.filter((_, j) => j !== i))}
                 title="Remove variable"
-                className="rounded-md border border-zinc-800 px-2.5 py-2 text-sm text-zinc-500 transition hover:border-red-500/40 hover:text-red-400"
+                className="btn-danger-ghost px-2.5 py-2"
               >
-                ✕
+                <X className="h-4 w-4" strokeWidth={1.75} />
               </button>
             </div>
           ))}
@@ -439,18 +480,28 @@ function EnvEditor({ projectId }: { projectId: string }) {
           onClick={() =>
             edit([...rows, { key: "", value: "", is_build_time: false }])
           }
-          className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500"
+          className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-white/10 px-3 py-1.5 text-sm text-zinc-400 transition-colors duration-150 hover:border-white/25 hover:text-zinc-200"
         >
-          + Add variable
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Add variable
         </button>
         <button
           onClick={() => save.mutate(cleaned)}
           disabled={save.isPending || draft === null}
-          className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
+          className="btn-primary px-4 py-1.5"
         >
           {save.isPending ? "Saving…" : "Save"}
         </button>
-        {saved && <span className="text-sm text-emerald-400">Saved ✓</span>}
+        {saved && (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-1 text-sm text-emerald-400"
+          >
+            <Check className="h-4 w-4" strokeWidth={2} />
+            Saved
+          </motion.span>
+        )}
         {save.error && (
           <span className="text-sm text-red-400">
             {save.error instanceof ApiError
@@ -477,17 +528,17 @@ function RuntimeLogs({ projectId }: { projectId: string }) {
       <div className="mb-3 flex items-center gap-3">
         <button
           onClick={() => setStreaming((s) => !s)}
-          className={
-            streaming
-              ? "rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500"
-              : "rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
-          }
+          className={streaming ? "btn-secondary" : "btn-primary"}
         >
+          <Terminal className="h-4 w-4" strokeWidth={1.75} />
           {streaming ? "Stop" : "Stream logs"}
         </button>
         {streaming && !log.error && !log.ended && (
           <span className="flex items-center gap-2 text-xs text-zinc-500">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            </span>
             live
           </span>
         )}
@@ -502,6 +553,8 @@ function RuntimeLogs({ projectId }: { projectId: string }) {
               : null
           }
           emptyText="Waiting for container output…"
+          title="runtime · stdout/stderr"
+          live={!log.error && !log.ended}
         />
       )}
       {!streaming && (

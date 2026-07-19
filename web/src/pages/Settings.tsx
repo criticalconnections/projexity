@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
+import { Check, Copy, ExternalLink, FolderGit2 } from "lucide-react";
 import { api, type GithubAppStatus } from "../api";
 
 export function SettingsPage() {
@@ -29,20 +31,37 @@ export function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+      <p className="mt-1 text-sm text-zinc-500">
+        Instance-level configuration and integrations.
+      </p>
 
-      {connected && (
-        <div className="mt-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300">
-          GitHub connected ✓
+      <AnimatePresence>
+        {connected && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="mt-4 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300"
+          >
+            <Check className="h-4 w-4" strokeWidth={2} />
+            GitHub connected
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="card mt-8 max-w-2xl p-6">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.04] text-zinc-400">
+            <FolderGit2 className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <h2 className="font-medium tracking-tight text-zinc-100">GitHub</h2>
         </div>
-      )}
-
-      <div className="mt-8 max-w-2xl rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-        <h2 className="font-medium text-zinc-100">GitHub</h2>
         {status.isLoading ? (
-          <p className="mt-3 text-sm text-zinc-500">Loading…</p>
+          <p className="mt-4 text-sm text-zinc-500">Loading…</p>
         ) : status.isError || !status.data ? (
-          <p className="mt-3 text-sm text-red-400">
+          <p className="mt-4 text-sm text-red-400">
             Couldn't load GitHub status.
           </p>
         ) : status.data.configured ? (
@@ -75,7 +94,7 @@ function GithubNotConfigured({ status }: { status: GithubAppStatus }) {
   });
 
   return (
-    <div className="mt-3">
+    <div className="mt-4">
       <p className="text-sm text-zinc-500">
         Register a GitHub App owned by your account to deploy private repos and
         get push-to-deploy.
@@ -97,9 +116,36 @@ function GithubNotConfigured({ status }: { status: GithubAppStatus }) {
       <button
         onClick={() => create.mutate()}
         disabled={create.isPending}
-        className="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
+        className="btn-primary mt-4"
       >
         {create.isPending ? "Redirecting to GitHub…" : "Create GitHub App"}
+      </button>
+    </div>
+  );
+}
+
+function WebhookUrl({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <code className="block min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-md border border-white/[0.08] bg-[#0b0b0d] px-3 py-2 font-mono text-xs text-zinc-300">
+        {url}
+      </code>
+      <button
+        onClick={copy}
+        title="Copy webhook URL"
+        className="btn-secondary shrink-0 px-2.5 py-2"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-400" strokeWidth={2} />
+        ) : (
+          <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
+        )}
       </button>
     </div>
   );
@@ -109,7 +155,7 @@ function GithubConfigured({ status }: { status: GithubAppStatus }) {
   const appUrl = status.app_url ?? "";
   const noInstalls = status.installations.length === 0;
   return (
-    <div className="mt-3 space-y-4">
+    <div className="mt-4 space-y-4">
       <div className="flex items-center justify-between text-sm">
         <span className="text-zinc-500">App</span>
         {appUrl ? (
@@ -117,12 +163,15 @@ function GithubConfigured({ status }: { status: GithubAppStatus }) {
             href={appUrl}
             target="_blank"
             rel="noreferrer"
-            className="font-mono text-emerald-400 hover:underline"
+            className="inline-flex items-center gap-1 font-mono text-[13px] text-emerald-400 transition-colors hover:text-emerald-300 hover:underline"
           >
             {status.app_slug}
+            <ExternalLink className="h-3 w-3" strokeWidth={1.75} />
           </a>
         ) : (
-          <span className="font-mono text-zinc-200">{status.app_slug}</span>
+          <span className="font-mono text-[13px] text-zinc-200">
+            {status.app_slug}
+          </span>
         )}
       </div>
 
@@ -139,9 +188,7 @@ function GithubConfigured({ status }: { status: GithubAppStatus }) {
 
       <div className="text-sm">
         <span className="text-zinc-500">Webhook URL</span>
-        <code className="mt-1 block overflow-x-auto rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-300">
-          {status.webhook_url}
-        </code>
+        <WebhookUrl url={status.webhook_url} />
       </div>
 
       {noInstalls && (
@@ -156,11 +203,7 @@ function GithubConfigured({ status }: { status: GithubAppStatus }) {
           href={`${appUrl}/installations/new`}
           target="_blank"
           rel="noreferrer"
-          className={
-            noInstalls
-              ? "rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
-              : "rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500"
-          }
+          className={noInstalls ? "btn-primary" : "btn-secondary px-3 py-1.5 text-xs"}
         >
           Install / add repositories
         </a>
@@ -169,7 +212,7 @@ function GithubConfigured({ status }: { status: GithubAppStatus }) {
             href={appUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-zinc-500 transition hover:border-zinc-600 hover:text-zinc-300"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs text-zinc-500 transition-all duration-150 hover:border-white/20 hover:text-zinc-300 active:scale-[0.98]"
           >
             Manage on GitHub
           </a>

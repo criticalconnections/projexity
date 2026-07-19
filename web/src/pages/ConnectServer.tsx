@@ -3,6 +3,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  ArrowLeft,
+  Check,
+  Container,
+  Copy,
+  Cpu,
+  HardDrive,
+  KeyRound,
+  MemoryStick,
+  Network,
+  ShieldCheck,
+  Terminal,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import {
   api,
   ApiError,
   parseBootstrapSteps,
@@ -10,6 +25,7 @@ import {
   type ServerFacts,
   type Target,
 } from "../api";
+import { StepIcon } from "../components/StepIcon";
 
 type Step = "intro" | "name" | "host" | "key" | "check" | "bootstrap" | "done";
 
@@ -102,13 +118,16 @@ export function ConnectServerPage() {
 
   const stepIndex = STEP_ORDER.indexOf(step);
   const progress = (stepIndex / (STEP_ORDER.length - 1)) * 100;
+  const counter = `${String(stepIndex + 1).padStart(2, "0")} / ${String(
+    STEP_ORDER.length,
+  ).padStart(2, "0")}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
       {/* progress bar */}
-      <div className="h-1 w-full bg-zinc-900">
+      <div className="h-0.5 w-full bg-white/[0.06]">
         <motion.div
-          className="h-full bg-emerald-500"
+          className="h-full rounded-r-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
           animate={{ width: `${progress}%` }}
           transition={{ type: "spring", stiffness: 120, damping: 20 }}
         />
@@ -116,21 +135,24 @@ export function ConnectServerPage() {
 
       {/* header */}
       <div className="flex items-center justify-between px-6 py-4">
-        {stepIndex > 0 && stepIndex < 5 ? (
-          <button
-            onClick={() => go(STEP_ORDER[stepIndex - 1])}
-            className="rounded-md px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
-          >
-            ← Back
-          </button>
-        ) : (
-          <span />
-        )}
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs text-zinc-600">{counter}</span>
+          {stepIndex > 0 && stepIndex < 5 && (
+            <button
+              onClick={() => go(STEP_ORDER[stepIndex - 1])}
+              className="btn-ghost px-2 py-1 text-sm"
+            >
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+              Back
+            </button>
+          )}
+        </div>
         <button
           onClick={close}
-          className="rounded-md px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+          title="Close"
+          className="btn-ghost px-2 py-1.5"
         >
-          ✕
+          <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
 
@@ -185,7 +207,7 @@ export function ConnectServerPage() {
                         value={port}
                         onChange={(e) => setPort(e.target.value)}
                         inputMode="numeric"
-                        className="mt-1 block w-24 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-emerald-500"
+                        className="input mt-1 block w-24 font-mono"
                       />
                     </label>
                     <label className="text-sm text-zinc-500">
@@ -193,7 +215,7 @@ export function ConnectServerPage() {
                       <input
                         value={sshUser}
                         onChange={(e) => setSshUser(e.target.value)}
-                        className="mt-1 block w-36 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-emerald-500"
+                        className="input mt-1 block w-36 font-mono"
                       />
                       <span className="mt-1 block text-xs text-zinc-600">
                         root, or a user with passwordless sudo
@@ -265,11 +287,13 @@ function QuestionForm({
         onSubmit();
       }}
     >
-      <p className="mb-2 text-sm font-medium text-emerald-400">{n} →</p>
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+      <p className="mb-3 font-mono text-xs font-medium tracking-wider text-emerald-400">
+        0{n} →
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">
         {question}
       </h1>
-      {hint && <p className="mt-2 text-zinc-500">{hint}</p>}
+      {hint && <p className="mt-3 text-zinc-500">{hint}</p>}
       <div className="mt-8">{children}</div>
     </form>
   );
@@ -287,30 +311,32 @@ function BigInput({
   autoFocus?: boolean;
 }) {
   return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      spellCheck={false}
-      autoComplete="off"
-      className="w-full border-b-2 border-zinc-800 bg-transparent pb-2 text-3xl text-zinc-100 outline-none transition-colors placeholder:text-zinc-700 focus:border-emerald-500"
-    />
+    <div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        spellCheck={false}
+        autoComplete="off"
+        className="peer w-full border-b border-white/10 bg-transparent pb-2 text-4xl tracking-tight text-zinc-100 caret-emerald-400 outline-none transition-colors placeholder:text-zinc-700 focus-visible:shadow-none"
+      />
+      <span
+        aria-hidden
+        className="block h-px origin-left scale-x-0 bg-gradient-to-r from-emerald-400 to-teal-400 transition-transform duration-300 ease-out peer-focus:scale-x-100"
+      />
+    </div>
   );
 }
 
 function NextButton({ disabled, busy }: { disabled?: boolean; busy?: boolean }) {
   return (
     <div className="mt-8 flex items-center gap-3">
-      <button
-        type="submit"
-        disabled={disabled || busy}
-        className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
-      >
+      <button type="submit" disabled={disabled || busy} className="btn-primary px-5 py-2.5">
         {busy ? "Working…" : "Continue"}
       </button>
       <span className="text-xs text-zinc-600">
-        press <kbd className="rounded border border-zinc-700 px-1">Enter ↵</kbd>
+        press <kbd className="kbd">Enter ↵</kbd>
       </span>
     </div>
   );
@@ -321,6 +347,18 @@ function ErrorText({ message }: { message: string }) {
 }
 
 /* ---------- steps ---------- */
+
+const INTRO_POINTS: { icon: LucideIcon; text: string }[] = [
+  { icon: KeyRound, text: "You add our SSH key to the server (one command)" },
+  {
+    icon: ShieldCheck,
+    text: "We check the server and tell you about anything odd",
+  },
+  {
+    icon: Container,
+    text: "We install Docker and a Caddy proxy — nothing else",
+  },
+];
 
 function Intro({ onNext }: { onNext: () => void }) {
   return (
@@ -334,34 +372,26 @@ function Intro({ onNext }: { onNext: () => void }) {
         HTTPS.
       </p>
       <ul className="mt-8 space-y-3 text-zinc-400">
-        {[
-          "You add our SSH key to the server (one command)",
-          "We check the server and tell you about anything odd",
-          "We install Docker and a Caddy proxy — nothing else",
-        ].map((line, i) => (
+        {INTRO_POINTS.map(({ icon: Icon, text }, i) => (
           <motion.li
-            key={line}
+            key={text}
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 + i * 0.12 }}
             className="flex items-start gap-3"
           >
-            <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-xs text-emerald-400">
-              {i + 1}
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+              <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
             </span>
-            {line}
+            {text}
           </motion.li>
         ))}
       </ul>
       <div className="mt-10 flex items-center gap-4">
-        <button
-          onClick={onNext}
-          autoFocus
-          className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white transition hover:bg-emerald-500"
-        >
+        <button onClick={onNext} autoFocus className="btn-primary px-6 py-3">
           Let's go
         </button>
-        <span className="rounded-md border border-zinc-800 px-3 py-1.5 text-sm text-zinc-500">
+        <span className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-sm text-zinc-500">
           Kubernetes cluster — soon
         </span>
       </div>
@@ -378,38 +408,53 @@ function KeyStep({ target, onNext }: { target: Target; onNext: () => void }) {
   };
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-emerald-400">3 →</p>
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+      <p className="mb-3 font-mono text-xs font-medium tracking-wider text-emerald-400">
+        03 →
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">
         Authorize Projexity's key
       </h1>
-      <p className="mt-2 max-w-lg text-zinc-500">
+      <p className="mt-3 max-w-lg text-zinc-500">
         We generated a fresh SSH key just for this server — the private half
         never leaves your Projexity instance. Run this on{" "}
-        <span className="text-zinc-300">
+        <span className="font-mono text-[13px] text-zinc-300">
           {target.ssh_user}@{target.host}
         </span>
         :
       </p>
       <div className="group relative mt-6">
-        <pre className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/70 p-4 pr-20 text-sm text-emerald-300">
+        <pre className="overflow-x-auto rounded-xl border border-white/[0.08] bg-[#0b0b0d] p-4 pr-24 font-mono text-[13px] leading-relaxed text-emerald-300 shadow-lg shadow-black/40">
           {target.setup_command}
         </pre>
         <button
           onClick={copy}
-          className="absolute right-3 top-3 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 transition hover:border-zinc-500"
+          className="btn-secondary absolute right-3 top-3 px-2.5 py-1 text-xs"
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-emerald-400" strokeWidth={2} />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Copy
+            </>
+          )}
         </button>
       </div>
-      <p className="mt-3 text-xs text-zinc-600">
-        Tip: already in a terminal? <code>ssh {target.ssh_user}@{target.host}</code>{" "}
-        and paste it there.
+      <p className="mt-3 flex items-start gap-1.5 text-xs text-zinc-600">
+        <Terminal className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+        <span>
+          Tip: already in a terminal?{" "}
+          <code className="font-mono text-zinc-500">
+            ssh {target.ssh_user}@{target.host}
+          </code>{" "}
+          and paste it there.
+        </span>
       </p>
       <div className="mt-8">
-        <button
-          onClick={onNext}
-          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
-        >
+        <button onClick={onNext} className="btn-primary px-5 py-2.5">
           I've added it — test the connection
         </button>
       </div>
@@ -438,7 +483,7 @@ function CheckStep({
     return (
       <div className="text-center">
         <Spinner large />
-        <h1 className="mt-6 text-2xl font-semibold text-zinc-100">
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight text-zinc-100">
           Knocking on the door…
         </h1>
         <p className="mt-2 text-zinc-500">
@@ -451,10 +496,10 @@ function CheckStep({
   if (!check.ok) {
     return (
       <div>
-        <p className="mb-2 text-sm font-medium text-red-400">
+        <p className="mb-3 font-mono text-xs font-medium tracking-wider text-red-400">
           Couldn't connect
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">
           {check.error}
         </h1>
         <p className="mt-3 max-w-lg text-zinc-500">
@@ -462,16 +507,10 @@ function CheckStep({
           try again.
         </p>
         <div className="mt-8 flex gap-3">
-          <button
-            onClick={onRetry}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
-          >
+          <button onClick={onRetry} className="btn-primary px-5 py-2.5">
             Try again
           </button>
-          <button
-            onClick={onBack}
-            className="rounded-lg border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 transition hover:border-zinc-500"
-          >
+          <button onClick={onBack} className="btn-secondary px-5 py-2.5">
             Edit connection details
           </button>
         </div>
@@ -485,8 +524,11 @@ function CheckStep({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-emerald-400">Connected ✓</p>
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+      <p className="mb-3 flex items-center gap-1.5 font-mono text-xs font-medium tracking-wider text-emerald-400">
+        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+        Connected
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">
         Here's what we found
       </h1>
       <div className="mt-6 space-y-2">
@@ -496,10 +538,20 @@ function CheckStep({
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.07 }}
-            className="flex items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5 text-sm"
+            className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-sm"
           >
-            <span className="text-zinc-500">{row.label}</span>
-            <span className={row.ok ? "text-zinc-200" : "text-amber-400"}>
+            <span className="flex items-center gap-2.5 text-zinc-500">
+              <row.icon
+                className="h-4 w-4 text-zinc-600"
+                strokeWidth={1.75}
+              />
+              {row.label}
+            </span>
+            <span
+              className={
+                row.ok ? "font-mono text-[13px] text-zinc-200" : "font-mono text-[13px] text-amber-400"
+              }
+            >
               {row.value}
             </span>
           </motion.div>
@@ -515,7 +567,7 @@ function CheckStep({
                   ? "border-red-500/30 bg-red-500/5 text-red-300"
                   : issue.severity === "warning"
                     ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
-                    : "border-zinc-800 bg-zinc-900/40 text-zinc-400"
+                    : "border-white/[0.08] bg-white/[0.02] text-zinc-400"
               }`}
             >
               {issue.message}
@@ -528,14 +580,11 @@ function CheckStep({
         <button
           onClick={onContinue}
           disabled={blocked || busy}
-          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
+          className="btn-primary px-5 py-2.5"
         >
           {busy ? "Starting…" : "Set up this server"}
         </button>
-        <button
-          onClick={onRetry}
-          className="rounded-lg border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 transition hover:border-zinc-500"
-        >
+        <button onClick={onRetry} className="btn-secondary px-5 py-2.5">
           Re-check
         </button>
       </div>
@@ -578,10 +627,14 @@ function BootstrapStepView({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-emerald-400">
+      <p
+        className={`mb-3 font-mono text-xs font-medium tracking-wider ${
+          failed ? "text-red-400" : "text-emerald-400"
+        }`}
+      >
         {failed ? "Setup hit a snag" : "Setting up your server"}
       </p>
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+      <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">
         {failed ? "Something went wrong" : "Sit back for a minute…"}
       </h1>
       <div className="mt-8 space-y-3">
@@ -603,7 +656,7 @@ function BootstrapStepView({
               </p>
               {s.detail && (
                 <p
-                  className={`mt-0.5 truncate text-xs ${
+                  className={`mt-0.5 truncate font-mono text-xs ${
                     s.status === "failed" ? "text-red-400" : "text-zinc-500"
                   }`}
                 >
@@ -616,10 +669,7 @@ function BootstrapStepView({
       </div>
       {failed && (
         <div className="mt-8 flex gap-3">
-          <button
-            onClick={onRetry}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
-          >
+          <button onClick={onRetry} className="btn-primary px-5 py-2.5">
             Retry setup
           </button>
           <p className="self-center text-sm text-zinc-500">
@@ -638,9 +688,9 @@ function DoneStep({ name, onClose }: { name: string; onClose: () => void }) {
         initial={{ scale: 0.4, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 180, damping: 12 }}
-        className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/15 text-4xl text-emerald-400 shadow-[0_0_60px_-10px] shadow-emerald-500/40"
+        className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/15 text-emerald-400 shadow-[0_0_60px_-10px] shadow-emerald-500/40"
       >
-        ✓
+        <Check className="h-9 w-9" strokeWidth={2} />
       </motion.div>
       <h1 className="mt-6 text-4xl font-semibold tracking-tight text-zinc-100">
         {name} is ready
@@ -649,11 +699,7 @@ function DoneStep({ name, onClose }: { name: string; onClose: () => void }) {
         Docker is running and the proxy is live. Point a wildcard DNS record at
         this server and every app you deploy gets an instant HTTPS URL.
       </p>
-      <button
-        onClick={onClose}
-        autoFocus
-        className="mt-10 rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white transition hover:bg-emerald-500"
-      >
+      <button onClick={onClose} autoFocus className="btn-primary mt-10 px-6 py-3">
         Take me to my servers
       </button>
     </div>
@@ -666,38 +712,19 @@ function Spinner({ large }: { large?: boolean }) {
   const size = large ? "h-10 w-10 border-[3px]" : "h-4 w-4 border-2";
   return (
     <div
-      className={`${size} mx-auto animate-spin rounded-full border-zinc-700 border-t-emerald-400`}
+      className={`${size} mx-auto animate-spin rounded-full border-white/10 border-t-emerald-400`}
     />
   );
 }
 
-function StepIcon({ status }: { status: string }) {
-  if (status === "done" || status === "skipped")
-    return (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs text-emerald-400">
-        ✓
-      </span>
-    );
-  if (status === "failed")
-    return (
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/15 text-xs text-red-400">
-        ✕
-      </span>
-    );
-  if (status === "running")
-    return (
-      <span className="flex h-5 w-5 items-center justify-center">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400" />
-      </span>
-    );
-  return (
-    <span className="flex h-5 w-5 items-center justify-center text-zinc-700">
-      ○
-    </span>
-  );
+interface FactRow {
+  label: string;
+  value: string;
+  ok: boolean;
+  icon: LucideIcon;
 }
 
-function factRows(f: ServerFacts) {
+function factRows(f: ServerFacts): FactRow[] {
   const gib = (b: number | null) =>
     b == null ? "unknown" : `${(b / 1024 ** 3).toFixed(1)} GiB`;
   return [
@@ -705,8 +732,9 @@ function factRows(f: ServerFacts) {
       label: "Operating system",
       value: f.distro ?? f.os,
       ok: f.os === "Linux",
+      icon: Terminal,
     },
-    { label: "Architecture", value: f.arch, ok: true },
+    { label: "Architecture", value: f.arch, ok: true, icon: Cpu },
     {
       label: "Access",
       value:
@@ -716,11 +744,13 @@ function factRows(f: ServerFacts) {
             ? "passwordless sudo"
             : "insufficient",
       ok: f.access !== "none",
+      icon: ShieldCheck,
     },
     {
       label: "Docker",
       value: f.docker_version ?? "not installed — we'll handle it",
       ok: true,
+      icon: Container,
     },
     {
       label: "Ports 80 / 443",
@@ -731,8 +761,9 @@ function factRows(f: ServerFacts) {
             ? "free"
             : "in use",
       ok: f.caddy_running || (f.port_80_free && f.port_443_free),
+      icon: Network,
     },
-    { label: "Free disk", value: gib(f.disk_free_bytes), ok: true },
-    { label: "Memory", value: gib(f.memory_total_bytes), ok: true },
+    { label: "Free disk", value: gib(f.disk_free_bytes), ok: true, icon: HardDrive },
+    { label: "Memory", value: gib(f.memory_total_bytes), ok: true, icon: MemoryStick },
   ];
 }

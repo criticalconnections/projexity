@@ -2,7 +2,7 @@ id: actual-budget
 name: Actual Budget
 description: Fast, privacy-first personal budgeting with envelope-style planning.
 category: finance
-icon: "💰"
+icon: "/app-icons/actual-budget.png"
 website: https://actualbudget.org
 env: []
 web:

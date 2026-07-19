@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
+import {
+  ArrowLeft,
+  Check,
+  Container,
+  GitBranch,
+  Search,
+  Server,
+  X,
+} from "lucide-react";
 import { api, ApiError, type GithubRepo, type Target } from "../api";
 
 type Step = "what" | "where" | "launch";
@@ -94,6 +103,9 @@ export function NewProjectPage() {
 
   const stepIndex = STEP_ORDER.indexOf(step);
   const progress = ((stepIndex + 1) / STEP_ORDER.length) * 100;
+  const counter = `${String(stepIndex + 1).padStart(2, "0")} / ${String(
+    STEP_ORDER.length,
+  ).padStart(2, "0")}`;
 
   const portValid =
     /^\d+$/.test(port.trim()) &&
@@ -104,11 +116,11 @@ export function NewProjectPage() {
   const selectedTarget = readyTargets.find((t) => t.id === targetId) ?? null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
       {/* progress bar */}
-      <div className="h-1 w-full bg-zinc-900">
+      <div className="h-0.5 w-full bg-white/[0.06]">
         <motion.div
-          className="h-full bg-emerald-500"
+          className="h-full rounded-r-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
           animate={{ width: `${progress}%` }}
           transition={{ type: "spring", stiffness: 120, damping: 20 }}
         />
@@ -116,21 +128,20 @@ export function NewProjectPage() {
 
       {/* header */}
       <div className="flex items-center justify-between px-6 py-4">
-        {stepIndex > 0 ? (
-          <button
-            onClick={() => go(STEP_ORDER[stepIndex - 1])}
-            className="rounded-md px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
-          >
-            ← Back
-          </button>
-        ) : (
-          <span />
-        )}
-        <button
-          onClick={close}
-          className="rounded-md px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
-        >
-          ✕
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs text-zinc-600">{counter}</span>
+          {stepIndex > 0 && (
+            <button
+              onClick={() => go(STEP_ORDER[stepIndex - 1])}
+              className="btn-ghost px-2 py-1 text-sm"
+            >
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+              Back
+            </button>
+          )}
+        </div>
+        <button onClick={close} title="Close" className="btn-ghost px-2 py-1.5">
+          <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
 
@@ -162,20 +173,21 @@ export function NewProjectPage() {
                   <div className="mt-8 flex gap-2">
                     {(
                       [
-                        ["repo", "Git repository"],
-                        ["image", "Docker image"],
+                        ["repo", "Git repository", GitBranch],
+                        ["image", "Docker image", Container],
                       ] as const
-                    ).map(([key, label]) => (
+                    ).map(([key, label, Icon]) => (
                       <button
                         key={key}
                         type="button"
                         onClick={() => setSource(key)}
-                        className={`rounded-lg border px-4 py-2 text-sm transition ${
+                        className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition-all duration-150 active:scale-[0.98] ${
                           source === key
-                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
-                            : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                            ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                            : "border-white/[0.08] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
                         }`}
                       >
+                        <Icon className="h-4 w-4" strokeWidth={1.75} />
                         {label}
                       </button>
                     ))}
@@ -190,7 +202,7 @@ export function NewProjectPage() {
                           placeholder="nginx:latest"
                           spellCheck={false}
                           autoComplete="off"
-                          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+                          className="input mt-1 block font-mono"
                         />
                         <span className="mt-1 block text-xs text-zinc-600">
                           Any public Docker image.
@@ -217,7 +229,7 @@ export function NewProjectPage() {
                             placeholder="owner/repo"
                             spellCheck={false}
                             autoComplete="off"
-                            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+                            className="input mt-1 block font-mono"
                           />
                           <span className="mt-1 block text-xs text-zinc-600">
                             Public repos for now — GitHub App with private
@@ -242,7 +254,7 @@ export function NewProjectPage() {
                             onChange={(e) => setBranch(e.target.value)}
                             spellCheck={false}
                             autoComplete="off"
-                            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none focus:border-emerald-500"
+                            className="input mt-1 block font-mono"
                           />
                         </label>
                       </div>
@@ -255,7 +267,7 @@ export function NewProjectPage() {
                         value={port}
                         onChange={(e) => setPort(e.target.value)}
                         inputMode="numeric"
-                        className="mt-1 block w-24 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-emerald-500"
+                        className="input mt-1 block w-24 font-mono"
                       />
                       <span className="mt-1 block text-xs text-zinc-600">
                         The port your app listens on inside the container.
@@ -316,10 +328,12 @@ export function NewProjectPage() {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.07 }}
-                        className="flex items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5 text-sm"
+                        className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-sm"
                       >
                         <span className="text-zinc-500">{label}</span>
-                        <span className="font-mono text-zinc-200">{value}</span>
+                        <span className="font-mono text-[13px] text-zinc-200">
+                          {value}
+                        </span>
                       </motion.div>
                     ))}
                   </div>
@@ -330,15 +344,12 @@ export function NewProjectPage() {
                     <button
                       type="submit"
                       disabled={launch.isPending}
-                      className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
+                      className="btn-primary px-5 py-2.5"
                     >
                       {launch.isPending ? "Launching…" : "Create & deploy"}
                     </button>
                     <span className="text-xs text-zinc-600">
-                      press{" "}
-                      <kbd className="rounded border border-zinc-700 px-1">
-                        Enter ↵
-                      </kbd>
+                      press <kbd className="kbd">Enter ↵</kbd>
                     </span>
                   </div>
                 </QuestionForm>
@@ -373,11 +384,13 @@ function QuestionForm({
         onSubmit();
       }}
     >
-      <p className="mb-2 text-sm font-medium text-emerald-400">{n} →</p>
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+      <p className="mb-3 font-mono text-xs font-medium tracking-wider text-emerald-400">
+        0{n} →
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">
         {question}
       </h1>
-      {hint && <p className="mt-2 text-zinc-500">{hint}</p>}
+      {hint && <p className="mt-3 text-zinc-500">{hint}</p>}
       <div className="mt-8">{children}</div>
     </form>
   );
@@ -395,30 +408,32 @@ function BigInput({
   autoFocus?: boolean;
 }) {
   return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      spellCheck={false}
-      autoComplete="off"
-      className="w-full border-b-2 border-zinc-800 bg-transparent pb-2 text-3xl text-zinc-100 outline-none transition-colors placeholder:text-zinc-700 focus:border-emerald-500"
-    />
+    <div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        spellCheck={false}
+        autoComplete="off"
+        className="peer w-full border-b border-white/10 bg-transparent pb-2 text-4xl tracking-tight text-zinc-100 caret-emerald-400 outline-none transition-colors placeholder:text-zinc-700 focus-visible:shadow-none"
+      />
+      <span
+        aria-hidden
+        className="block h-px origin-left scale-x-0 bg-gradient-to-r from-emerald-400 to-teal-400 transition-transform duration-300 ease-out peer-focus:scale-x-100"
+      />
+    </div>
   );
 }
 
 function NextButton({ disabled, busy }: { disabled?: boolean; busy?: boolean }) {
   return (
     <div className="mt-8 flex items-center gap-3">
-      <button
-        type="submit"
-        disabled={disabled || busy}
-        className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-40"
-      >
+      <button type="submit" disabled={disabled || busy} className="btn-primary px-5 py-2.5">
         {busy ? "Working…" : "Continue"}
       </button>
       <span className="text-xs text-zinc-600">
-        press <kbd className="rounded border border-zinc-700 px-1">Enter ↵</kbd>
+        press <kbd className="kbd">Enter ↵</kbd>
       </span>
     </div>
   );
@@ -437,26 +452,39 @@ function TargetOption({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-left transition ${
+      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3.5 text-left transition-all duration-150 active:scale-[0.99] ${
         selected
-          ? "border-emerald-500 bg-emerald-500/5"
-          : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-600"
+          ? "border-emerald-500/60 bg-emerald-500/5"
+          : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
       }`}
     >
-      <span>
-        <span className="block font-medium text-zinc-100">{target.name}</span>
-        <span className="mt-0.5 block text-sm text-zinc-500">
-          {target.ssh_user}@{target.host}
+      <span className="flex min-w-0 items-center gap-3">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+            selected
+              ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400"
+              : "border-white/[0.06] bg-white/[0.04] text-zinc-500"
+          }`}
+        >
+          <Server className="h-4 w-4" strokeWidth={1.75} />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-medium text-zinc-100">
+            {target.name}
+          </span>
+          <span className="mt-0.5 block truncate font-mono text-[13px] text-zinc-500">
+            {target.ssh_user}@{target.host}
+          </span>
         </span>
       </span>
       <span
-        className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
           selected
             ? "border-emerald-500 bg-emerald-500 text-zinc-950"
-            : "border-zinc-700 text-transparent"
+            : "border-white/15 text-transparent"
         }`}
       >
-        ✓
+        <Check className="h-3 w-3" strokeWidth={3} />
       </span>
     </button>
   );
@@ -480,15 +508,21 @@ function RepoPicker({
     .slice(0, 6);
 
   return (
-    <div className="mt-5 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-      <input
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder="Search your repositories…"
-        spellCheck={false}
-        autoComplete="off"
-        className="block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
-      />
+    <div className="mt-5 rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600"
+          strokeWidth={1.75}
+        />
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Search your repositories…"
+          spellCheck={false}
+          autoComplete="off"
+          className="input block py-1.5 pl-8"
+        />
+      </div>
       <div className="mt-2">
         {shown.length === 0 ? (
           <p className="px-2 py-1.5 text-xs text-zinc-600">
@@ -500,11 +534,11 @@ function RepoPicker({
               key={r.full_name}
               type="button"
               onClick={() => onPick(r)}
-              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-sm text-zinc-300 transition hover:bg-zinc-800/60 hover:text-zinc-100"
+              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-[13px] text-zinc-300 transition hover:bg-white/[0.06] hover:text-zinc-100"
             >
               <span className="truncate">{r.full_name}</span>
               {r.private && (
-                <span className="ml-2 shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 font-sans text-[10px] font-medium text-zinc-400">
+                <span className="ml-2 shrink-0 rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-sans text-[10px] font-medium uppercase tracking-wider text-zinc-400">
                   private
                 </span>
               )}
@@ -518,16 +552,13 @@ function RepoPicker({
 
 function NoTargets() {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-800 p-6">
+    <div className="dot-grid rounded-xl border border-dashed border-white/[0.08] p-6">
       <p className="text-zinc-300">No servers are ready yet.</p>
       <p className="mt-1 text-sm text-zinc-500">
         Connect a server first — it takes about two minutes — then come back
         here to deploy onto it.
       </p>
-      <Link
-        to="/targets/new"
-        className="mt-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
-      >
+      <Link to="/targets/new" className="btn-primary mt-4 inline-flex">
         Connect a server
       </Link>
     </div>

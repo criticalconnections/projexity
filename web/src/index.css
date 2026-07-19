@@ -1,9 +1,177 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans:
+    "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --color-canvas: #0a0a0b;
+}
+
 :root {
   color-scheme: dark;
 }
 
+html {
+  background: #0a0a0b;
+}
+
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  @apply bg-canvas font-sans text-zinc-100 antialiased;
+}
+
+/* Extremely subtle fixed emerald glow, top center. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    640px 420px at 50% -8%,
+    rgb(16 185 129 / 0.04),
+    transparent 70%
+  );
+}
+
+h1,
+h2,
+h3 {
+  font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: rgb(16 185 129 / 0.3);
+}
+
+/* Thin custom scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.1) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.1);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.18);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus rings, uniformly. */
+:where(button, a, input, select, textarea, [role="button"], [role="link"]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(16 185 129 / 0.4);
+}
+
+@layer components {
+  /* Layered surface with a 1px top inner highlight. */
+  .card {
+    @apply relative rounded-xl border border-white/[0.06] bg-white/[0.02] shadow-lg shadow-black/40;
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 12px;
+    right: 12px;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.08),
+      transparent
+    );
+  }
+  .card-hover {
+    @apply transition-[border-color,transform,box-shadow] duration-150 hover:-translate-y-px hover:border-white/[0.14];
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium text-white transition-all duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40;
+    background-image: linear-gradient(135deg, #10b981, #0d9488);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      0 1px 2px rgb(0 0 0 / 0.4);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition-all duration-150 hover:border-white/20 hover:text-zinc-100 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-zinc-100 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  .btn-danger-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-white/[0.06] px-3 py-1.5 text-sm text-zinc-500 transition-all duration-150 hover:border-red-500/40 hover:text-red-400 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-zinc-100 outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-zinc-600;
+  }
+  .input:focus {
+    border-color: rgb(16 185 129 / 0.6);
+    box-shadow: 0 0 0 3px rgb(16 185 129 / 0.08);
+  }
+
+  .kbd {
+    @apply rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-zinc-400;
+  }
+
+  .chip-mono {
+    @apply rounded border border-white/[0.06] bg-white/[0.04] px-1.5 py-0.5 font-mono text-xs text-zinc-300;
+  }
+
+  /* Faint dot-grid — empty states only. */
+  .dot-grid {
+    background-image: radial-gradient(
+      rgb(255 255 255 / 0.05) 1px,
+      transparent 1px
+    );
+    background-size: 20px 20px;
+  }
+
+  .animate-shake {
+    animation: pjx-shake 0.4s ease-in-out;
+  }
+}
+
+@keyframes pjx-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shake,
+  .animate-ping {
+    animation: none;
+  }
 }

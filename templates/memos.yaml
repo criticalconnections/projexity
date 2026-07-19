@@ -2,7 +2,7 @@ id: memos
 name: Memos
 description: Lightweight self-hosted note-taking — your private, markdown-first memo stream.
 category: productivity
-icon: "📝"
+icon: "/app-icons/memos.png"
 website: https://usememos.com
 env: []
 web:
