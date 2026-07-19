@@ -17,6 +17,7 @@ pub mod jobs;
 pub mod projects;
 pub mod sessions;
 pub mod targets;
+pub mod template_deployments;
 pub mod users;
 
 use sqlx::postgres::{PgPool, PgPoolOptions};

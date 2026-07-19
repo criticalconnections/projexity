@@ -6,6 +6,7 @@ import { api, ApiError } from "../api";
 const nav = [
   { to: "/", label: "Projects" },
   { to: "/targets", label: "Targets" },
+  { to: "/apps", label: "Apps" },
   { to: "/deployments", label: "Deployments" },
 ] as const;
 

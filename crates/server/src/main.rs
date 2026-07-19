@@ -2,15 +2,18 @@ mod auth;
 mod deploys;
 mod jobs_deploy;
 mod jobs_setup;
+mod jobs_template;
 mod release;
 mod routes;
 mod routes_github;
 mod routes_logs;
 mod routes_projects;
 mod routes_targets;
+mod routes_templates;
 mod secrets;
 mod sshfiles;
 mod state;
+mod templates;
 mod worker;
 
 use std::net::SocketAddr;
@@ -45,7 +48,9 @@ async fn main() -> anyhow::Result<()> {
     let pool = projexity_db::connect(&config.database_url).await?;
     tracing::info!("database connected, migrations applied");
 
-    let app_state = state::AppState::new(pool.clone(), config.clone(), master_key);
+    let templates = templates::load_all(&config.templates_dir)?;
+    tracing::info!(count = templates.len(), "app templates loaded");
+    let app_state = state::AppState::new(pool.clone(), config.clone(), master_key, templates);
 
     // Background worker: claims jobs from the Postgres queue in-process.
     // One binary, one container — self-hosting stays `docker compose up`.

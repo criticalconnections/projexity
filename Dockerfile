@@ -23,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY --from=rust /app/target/release/projexity /usr/local/bin/projexity
 COPY --from=web /app/web/dist /app/web/dist
+COPY templates/ /app/templates/
 ENV PJX_WEB_DIST=/app/web/dist
+ENV PJX_TEMPLATES_DIR=/app/templates
 EXPOSE 8080
 CMD ["projexity"]

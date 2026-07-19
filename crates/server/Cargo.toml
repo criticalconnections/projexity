@@ -23,9 +23,11 @@ projexity-core = { workspace = true }
 projexity-db = { workspace = true }
 projexity-github = { workspace = true }
 projexity-provider-docker = { workspace = true }
+rand_core = { version = "0.6", features = ["getrandom"] }
 projexity-provider-k8s = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = "0.9"
 sha2 = { workspace = true }
 sqlx = { workspace = true }
 ssh-key = { workspace = true }

@@ -9,6 +9,7 @@ import { LoginPage } from "./pages/Login";
 import { ProjectsPage } from "./pages/Projects";
 import { TargetsPage } from "./pages/Targets";
 import { ConnectServerPage } from "./pages/ConnectServer";
+import { AppsPage } from "./pages/Apps";
 import { DeploymentsPage } from "./pages/Deployments";
 import { NewProjectPage } from "./pages/NewProject";
 import { ProjectDetailPage } from "./pages/ProjectDetail";
@@ -65,6 +66,12 @@ const connectServerRoute = createRoute({
   component: ConnectServerPage,
 });
 
+const appsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/apps",
+  component: AppsPage,
+});
+
 const deploymentsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/deployments",
@@ -85,6 +92,7 @@ const routeTree = rootRoute.addChildren([
     projectDetailRoute,
     targetsRoute,
     connectServerRoute,
+    appsRoute,
     deploymentsRoute,
     settingsRoute,
   ]),

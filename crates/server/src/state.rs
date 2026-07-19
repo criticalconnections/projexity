@@ -16,6 +16,8 @@ pub struct Config {
     /// Publicly reachable base URL of this instance (GitHub redirects +
     /// webhook deliveries point here).
     pub public_url: String,
+    /// Directory holding one-click app templates.
+    pub templates_dir: PathBuf,
 }
 
 impl Config {
@@ -30,6 +32,9 @@ impl Config {
                 .into(),
             public_url: std::env::var("PJX_PUBLIC_URL")
                 .unwrap_or_else(|_| "http://localhost:8080".into()),
+            templates_dir: std::env::var("PJX_TEMPLATES_DIR")
+                .unwrap_or_else(|_| "templates".into())
+                .into(),
         })
     }
 }
@@ -39,14 +44,21 @@ pub struct AppState {
     pub pool: PgPool,
     pub config: Config,
     pub master_key: MasterKey,
+    pub templates: std::sync::Arc<Vec<crate::templates::Template>>,
 }
 
 impl AppState {
-    pub fn new(pool: PgPool, config: Config, master_key: MasterKey) -> Self {
+    pub fn new(
+        pool: PgPool,
+        config: Config,
+        master_key: MasterKey,
+        templates: Vec<crate::templates::Template>,
+    ) -> Self {
         Self {
             pool,
             config,
             master_key,
+            templates: std::sync::Arc::new(templates),
         }
     }
 }

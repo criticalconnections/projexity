@@ -1,0 +1,27 @@
+id: vaultwarden
+name: Vaultwarden
+description: Lightweight Bitwarden-compatible password manager server.
+category: security
+icon: "🔐"
+website: https://github.com/dani-garcia/vaultwarden
+env:
+  - key: ADMIN_TOKEN
+    generate: hex32
+  - key: SIGNUPS_ALLOWED
+    label: Allow new signups
+    default: "true"
+web:
+  - service: vaultwarden
+    port: 80
+compose:
+  services:
+    vaultwarden:
+      image: vaultwarden/server:latest
+      environment:
+        DOMAIN: "https://{{DOMAIN_vaultwarden}}"
+        ADMIN_TOKEN: "{{ADMIN_TOKEN}}"
+        SIGNUPS_ALLOWED: "{{SIGNUPS_ALLOWED}}"
+      volumes:
+        - vw_data:/data
+  volumes:
+    vw_data: {}

@@ -1,0 +1,18 @@
+id: memos
+name: Memos
+description: Lightweight self-hosted note-taking — your private, markdown-first memo stream.
+category: productivity
+icon: "📝"
+website: https://usememos.com
+env: []
+web:
+  - service: memos
+    port: 5230
+compose:
+  services:
+    memos:
+      image: neosmemo/memos:stable
+      volumes:
+        - memos_data:/var/opt/memos
+  volumes:
+    memos_data: {}

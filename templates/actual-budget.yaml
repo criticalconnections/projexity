@@ -1,0 +1,18 @@
+id: actual-budget
+name: Actual Budget
+description: Fast, privacy-first personal budgeting with envelope-style planning.
+category: finance
+icon: "💰"
+website: https://actualbudget.org
+env: []
+web:
+  - service: actual
+    port: 5006
+compose:
+  services:
+    actual:
+      image: docker.io/actualbudget/actual-server:latest
+      volumes:
+        - actual_data:/data
+  volumes:
+    actual_data: {}

@@ -1,0 +1,18 @@
+id: uptime-kuma
+name: Uptime Kuma
+description: Beautiful self-hosted uptime monitoring with status pages and alerts.
+category: monitoring
+icon: "📈"
+website: https://uptime.kuma.pet
+env: []
+web:
+  - service: kuma
+    port: 3001
+compose:
+  services:
+    kuma:
+      image: louislam/uptime-kuma:1
+      volumes:
+        - kuma_data:/app/data
+  volumes:
+    kuma_data: {}

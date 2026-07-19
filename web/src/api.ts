@@ -27,7 +27,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, message);
   }
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  // Some success responses (e.g. 202 Accepted) carry no body.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export interface User {
@@ -185,6 +187,46 @@ export interface GithubReposResponse {
   repos: GithubRepo[];
 }
 
+export interface CatalogEnvField {
+  key: string;
+  /** Always null in catalog responses. */
+  generate: string | null;
+  label: string | null;
+  default: string | null;
+  required: boolean;
+}
+
+export interface CatalogEntry {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  website: string;
+  env: CatalogEnvField[];
+}
+
+export interface AppInstall {
+  id: string;
+  target_id: string;
+  template_id: string;
+  name: string;
+  slug: string;
+  status: "installing" | "running" | "error" | "removing";
+  /** JSON-encoded install step reports (same shape as bootstrap steps). */
+  status_detail: string;
+  /** service name -> hostname */
+  domains: Record<string, string>;
+  created_at: string;
+}
+
+export interface InstallAppRequest {
+  template_id: string;
+  target_id: string;
+  name?: string;
+  env: Record<string, string>;
+}
+
 /** A deployment that is still in flight (not yet in a terminal-ish state). */
 export function isDeploymentActive(d: Deployment | null | undefined): boolean {
   return (
@@ -258,6 +300,14 @@ export const api = {
   getDeployment: (id: string) => request<Deployment>(`/deployments/${id}`),
   rollbackDeployment: (id: string) =>
     request<Deployment>(`/deployments/${id}/rollback`, { method: "POST" }),
+
+  listTemplates: () => request<CatalogEntry[]>("/templates"),
+  listApps: () => request<AppInstall[]>("/apps"),
+  installApp: (body: InstallAppRequest) =>
+    request<AppInstall>("/apps", { method: "POST", body: JSON.stringify(body) }),
+  getApp: (id: string) => request<AppInstall>(`/apps/${id}`),
+  uninstallApp: (id: string) =>
+    request<void>(`/apps/${id}`, { method: "DELETE" }),
 
   githubStatus: () => request<GithubAppStatus>("/github/app"),
   githubManifest: () => request<GithubManifest>("/github/manifest"),

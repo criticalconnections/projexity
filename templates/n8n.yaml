@@ -1,0 +1,31 @@
+id: n8n
+name: n8n
+description: Workflow automation with 400+ integrations — the self-hosted Zapier alternative.
+category: automation
+icon: "🔁"
+website: https://n8n.io
+env:
+  - key: N8N_ENCRYPTION_KEY
+    generate: hex32
+  - key: GENERIC_TIMEZONE
+    label: Timezone
+    default: "UTC"
+web:
+  - service: n8n
+    port: 5678
+compose:
+  services:
+    n8n:
+      image: docker.n8n.io/n8nio/n8n
+      environment:
+        N8N_ENCRYPTION_KEY: "{{N8N_ENCRYPTION_KEY}}"
+        N8N_HOST: "{{DOMAIN_n8n}}"
+        N8N_PORT: "5678"
+        N8N_PROTOCOL: https
+        N8N_PROXY_HOPS: "1"
+        WEBHOOK_URL: "https://{{DOMAIN_n8n}}/"
+        GENERIC_TIMEZONE: "{{GENERIC_TIMEZONE}}"
+      volumes:
+        - n8n_data:/home/node/.n8n
+  volumes:
+    n8n_data: {}

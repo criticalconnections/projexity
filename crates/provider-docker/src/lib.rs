@@ -13,6 +13,7 @@
 //! through the front door → drain and retire blue (keep its image; that image
 //! is the rollback).
 
+pub mod appstack;
 pub mod bootstrap;
 pub mod docker;
 pub mod preflight;
