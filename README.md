@@ -37,6 +37,10 @@ docker compose up -d
 
 Then open http://localhost:8080 and create your account.
 
+Going live at your own domain with automatic HTTPS (and working GitHub
+push-to-deploy)? See [DEPLOY.md](DEPLOY.md) — it's a DNS record and one
+command on any small VPS.
+
 ## Development
 
 Prereqs: Rust (stable), Node 22+, Docker (for Postgres).

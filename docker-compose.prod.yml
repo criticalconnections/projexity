@@ -1,0 +1,62 @@
+# Production self-hosting: docker compose -f docker-compose.prod.yml up -d
+#
+# Adds a TLS-terminating Caddy in front of the control plane. Point your
+# domain's A/AAAA record at this machine, set PJX_DOMAIN + PJX_MASTER_KEY in
+# .env, and certificates are issued automatically.
+
+name: projexity
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: projexity
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: projexity
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U projexity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    image: ghcr.io/criticalconnections/projexity:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://projexity:${POSTGRES_PASSWORD:?}@postgres/projexity
+      PJX_LISTEN_ADDR: 0.0.0.0:8080
+      PJX_MASTER_KEY: ${PJX_MASTER_KEY:?set PJX_MASTER_KEY in .env (long random string; encrypts stored credentials)}
+      PJX_STATE_DIR: /var/lib/projexity
+      PJX_PUBLIC_URL: https://${PJX_DOMAIN:?set PJX_DOMAIN in .env (e.g. projexity.io)}
+      RUST_LOG: ${RUST_LOG:-projexity=info}
+    volumes:
+      - state:/var/lib/projexity
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PJX_DOMAIN: ${PJX_DOMAIN:?}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  pgdata:
+  state:
+  caddy-data:
+  caddy-config:

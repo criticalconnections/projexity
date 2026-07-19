@@ -1,0 +1,7 @@
+{$PJX_DOMAIN} {
+	encode gzip
+	reverse_proxy server:8080 {
+		# SSE log streams are long-lived.
+		flush_interval -1
+	}
+}
