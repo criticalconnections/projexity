@@ -78,7 +78,7 @@ Cargo workspace + React dashboard:
 
 - [x] **M0** — Scaffold: workspace, control plane skeleton, dashboard shell, `docker compose up`
 - [x] **M1** — Connect a server: guided SSH onboarding, preflight checks, Docker + Caddy bootstrap
-- [ ] **M2** — Deploy a prebuilt image with a live HTTPS URL
+- [x] **M2** — Deploy a prebuilt image: blue/green deploys through Caddy, instant sslip.io domains, live deploy + runtime logs
 - [ ] **M3** — Build pipeline: Dockerfile & Nixpacks, live build logs, rollbacks
 - [ ] **M4** — GitHub App: push-to-deploy
 - [ ] **M5** — One-click apps: Supabase, OpenClaw, n8n, Uptime Kuma, Plausible, MinIO…

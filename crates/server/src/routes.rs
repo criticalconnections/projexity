@@ -1,18 +1,12 @@
-use std::convert::Infallible;
-use std::time::Duration;
-
 use axum::{
     extract::State,
-    response::sse::{Event, KeepAlive, Sse},
-    routing::{get, post},
+    routing::{get, post, put},
     Json, Router,
 };
-use futures::stream::Stream;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
-use crate::auth::{self, CurrentUser};
-use crate::routes_targets;
 use crate::state::AppState;
+use crate::{auth, routes_logs, routes_projects, routes_targets};
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
@@ -31,7 +25,33 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/targets/{id}/check", post(routes_targets::check))
         .route("/targets/{id}/bootstrap", post(routes_targets::bootstrap))
-        .route("/deployments/{id}/logs/stream", get(deployment_logs_stream));
+        .route(
+            "/projects",
+            get(routes_projects::list).post(routes_projects::create),
+        )
+        .route(
+            "/projects/{id}",
+            get(routes_projects::get).delete(routes_projects::delete),
+        )
+        .route(
+            "/projects/{id}/env",
+            get(routes_projects::get_env).merge(put(routes_projects::put_env)),
+        )
+        .route("/projects/{id}/deploy", post(routes_projects::deploy))
+        .route(
+            "/projects/{id}/deployments",
+            get(routes_projects::list_deployments),
+        )
+        .route(
+            "/projects/{id}/runtime-logs/stream",
+            get(routes_logs::runtime_logs),
+        )
+        .route("/deployments", get(routes_projects::list_all_deployments))
+        .route("/deployments/{id}", get(routes_projects::get_deployment))
+        .route(
+            "/deployments/{id}/logs/stream",
+            get(routes_logs::deploy_logs),
+        );
 
     // SPA: serve the built dashboard; unknown paths fall back to index.html
     // so client-side routing works on refresh.
@@ -54,20 +74,4 @@ async fn healthz(State(state): State<AppState>) -> Json<serde_json::Value> {
         "db": db_ok,
         "version": env!("CARGO_PKG_VERSION"),
     }))
-}
-
-/// Live log stream for a deployment (SSE).
-///
-/// M0 stub: emits keep-alives only, establishing the endpoint shape the
-/// dashboard codes against. M2/M3 replay persisted `deployment_logs` from the
-/// `Last-Event-ID` cursor, then live-tail from the worker's broadcast channel.
-async fn deployment_logs_stream(
-    _user: CurrentUser,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let stream = futures::stream::pending::<Result<Event, Infallible>>();
-    Sse::new(stream).keep_alive(
-        KeepAlive::new()
-            .interval(Duration::from_secs(15))
-            .text("keep-alive"),
-    )
 }

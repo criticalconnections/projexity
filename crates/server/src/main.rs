@@ -1,6 +1,10 @@
 mod auth;
+mod jobs_deploy;
 mod jobs_setup;
+mod release;
 mod routes;
+mod routes_logs;
+mod routes_projects;
 mod routes_targets;
 mod secrets;
 mod sshfiles;

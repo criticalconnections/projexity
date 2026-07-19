@@ -10,6 +10,8 @@ import { ProjectsPage } from "./pages/Projects";
 import { TargetsPage } from "./pages/Targets";
 import { ConnectServerPage } from "./pages/ConnectServer";
 import { DeploymentsPage } from "./pages/Deployments";
+import { NewProjectPage } from "./pages/NewProject";
+import { ProjectDetailPage } from "./pages/ProjectDetail";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -33,6 +35,23 @@ const projectsRoute = createRoute({
   component: ProjectsPage,
 });
 
+const newProjectRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects/new",
+  component: NewProjectPage,
+});
+
+const projectDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects/$id",
+  component: ProjectDetailRouteComponent,
+});
+
+function ProjectDetailRouteComponent() {
+  const { id } = projectDetailRoute.useParams();
+  return <ProjectDetailPage id={id} />;
+}
+
 const targetsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/targets",
@@ -55,6 +74,8 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
     projectsRoute,
+    newProjectRoute,
+    projectDetailRoute,
     targetsRoute,
     connectServerRoute,
     deploymentsRoute,

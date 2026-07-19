@@ -91,6 +91,85 @@ export interface CreateTargetRequest {
   ssh_user?: string;
 }
 
+export type DeploymentStatus =
+  | "pending"
+  | "deploying"
+  | "verifying"
+  | "running"
+  | "superseded"
+  | "stopped"
+  | "failed";
+
+export interface ReleaseEnvVar {
+  key: string;
+  value_enc: string;
+}
+
+export interface ReleaseSpec {
+  release_id: string;
+  app_slug: string;
+  image: string;
+  container_port: number;
+  domains: string[];
+  env: ReleaseEnvVar[];
+}
+
+export interface Deployment {
+  id: string;
+  project_id: string;
+  kind: "deploy" | "rollback";
+  status: DeploymentStatus;
+  release_spec: ReleaseSpec;
+  provider_ref: { container: string } | null;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  target_id: string | null;
+  image: string | null;
+  container_port: number;
+  domains: string[];
+  latest_deployment: Deployment | null;
+  created_at: string;
+}
+
+export interface EnvVar {
+  key: string;
+  value: string;
+  is_build_time: boolean;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  target_id: string;
+  image: string;
+  container_port: number;
+}
+
+/** A deployment that is still in flight (not yet in a terminal-ish state). */
+export function isDeploymentActive(d: Deployment | null | undefined): boolean {
+  return (
+    d?.status === "pending" ||
+    d?.status === "deploying" ||
+    d?.status === "verifying"
+  );
+}
+
+/** SSE endpoint for a deployment's build/deploy log. Use with EventSource. */
+export function deploymentLogsUrl(deploymentId: string): string {
+  return `/api/v1/deployments/${deploymentId}/logs/stream`;
+}
+
+/** SSE endpoint for a project's live container logs. Use with EventSource. */
+export function runtimeLogsUrl(projectId: string): string {
+  return `/api/v1/projects/${projectId}/runtime-logs/stream`;
+}
+
 export function parseBootstrapSteps(detail: string): BootstrapStep[] {
   try {
     const parsed = JSON.parse(detail);
@@ -124,4 +203,23 @@ export const api = {
     request<CheckResponse>(`/targets/${id}/check`, { method: "POST" }),
   bootstrapTarget: (id: string) =>
     request<Target>(`/targets/${id}/bootstrap`, { method: "POST" }),
+
+  listProjects: () => request<Project[]>("/projects"),
+  createProject: (body: CreateProjectRequest) =>
+    request<Project>("/projects", { method: "POST", body: JSON.stringify(body) }),
+  getProject: (id: string) => request<Project>(`/projects/${id}`),
+  deleteProject: (id: string) =>
+    request<void>(`/projects/${id}`, { method: "DELETE" }),
+  getProjectEnv: (id: string) => request<EnvVar[]>(`/projects/${id}/env`),
+  putProjectEnv: (id: string, vars: EnvVar[]) =>
+    request<void>(`/projects/${id}/env`, {
+      method: "PUT",
+      body: JSON.stringify(vars),
+    }),
+  deployProject: (id: string) =>
+    request<Deployment>(`/projects/${id}/deploy`, { method: "POST" }),
+  listProjectDeployments: (id: string) =>
+    request<Deployment[]>(`/projects/${id}/deployments`),
+  listDeployments: () => request<Deployment[]>("/deployments"),
+  getDeployment: (id: string) => request<Deployment>(`/deployments/${id}`),
 };

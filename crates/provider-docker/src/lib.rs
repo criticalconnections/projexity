@@ -14,6 +14,7 @@
 //! is the rollback).
 
 pub mod bootstrap;
+pub mod docker;
 pub mod preflight;
 pub mod transport;
 

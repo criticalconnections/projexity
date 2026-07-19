@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use projexity_db::jobs::{self, Job};
 
-use crate::jobs_setup;
 use crate::state::AppState;
+use crate::{jobs_deploy, jobs_setup};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(20);
@@ -69,6 +69,8 @@ async fn execute(state: &AppState, job: Job) {
 
     let result: anyhow::Result<()> = match job.kind.as_str() {
         "setup_server" => jobs_setup::run(state, job.payload.clone()).await,
+        "run_deployment" => jobs_deploy::run(state, job.payload.clone()).await,
+        "destroy_app" => jobs_deploy::destroy(state, job.payload.clone()).await,
         other => Err(anyhow::anyhow!("unknown job kind: {other}")),
     };
 
