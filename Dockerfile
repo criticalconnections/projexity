@@ -7,7 +7,9 @@ RUN npm ci
 COPY web/ ./
 RUN npm run build
 
-FROM rust:1.97-slim AS rust
+# Keep the builder's Debian release in lockstep with the runtime image below
+# (glibc compatibility).
+FROM rust:1.97-slim-bookworm AS rust
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
