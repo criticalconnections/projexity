@@ -1,0 +1,58 @@
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+} from "@tanstack/react-router";
+import { AppLayout } from "./layout/AppLayout";
+import { LoginPage } from "./pages/Login";
+import { ProjectsPage } from "./pages/Projects";
+import { TargetsPage } from "./pages/Targets";
+import { DeploymentsPage } from "./pages/Deployments";
+
+const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: LoginPage,
+});
+
+const appRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "app",
+  component: AppLayout,
+});
+
+const projectsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/",
+  component: ProjectsPage,
+});
+
+const targetsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/targets",
+  component: TargetsPage,
+});
+
+const deploymentsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/deployments",
+  component: DeploymentsPage,
+});
+
+const routeTree = rootRoute.addChildren([
+  loginRoute,
+  appRoute.addChildren([projectsRoute, targetsRoute, deploymentsRoute]),
+]);
+
+export const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}

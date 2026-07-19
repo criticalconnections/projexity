@@ -1,0 +1,59 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/db",
+    "crates/provider-docker",
+    "crates/provider-k8s",
+    "crates/build",
+    "crates/github",
+    "crates/server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/projexity/projexity"
+
+[workspace.dependencies]
+projexity-core = { path = "crates/core" }
+projexity-db = { path = "crates/db" }
+projexity-provider-docker = { path = "crates/provider-docker" }
+projexity-provider-k8s = { path = "crates/provider-k8s" }
+projexity-build = { path = "crates/build" }
+projexity-github = { path = "crates/github" }
+
+anyhow = "1"
+argon2 = "0.5"
+async-trait = "0.1"
+axum = "0.8"
+bollard = "0.19"
+chrono = { version = "0.4", features = ["serde"] }
+futures = "0.3"
+rust-embed = "8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "json",
+    "macros",
+    "migrate",
+] }
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors", "compression-gzip", "fs"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4", "v7", "serde"] }
+
+[profile.release]
+lto = "thin"
+strip = true

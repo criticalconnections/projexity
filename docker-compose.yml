@@ -1,0 +1,46 @@
+name: projexity
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: projexity
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-projexity}
+      POSTGRES_DB: projexity
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Local development convenience (native `cargo run` against compose PG).
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U projexity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build: .
+    image: projexity/projexity:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://projexity:${POSTGRES_PASSWORD:-projexity}@postgres/projexity
+      PJX_LISTEN_ADDR: 0.0.0.0:8080
+      RUST_LOG: ${RUST_LOG:-projexity=info}
+    ports:
+      - "${PJX_PORT:-8080}:8080"
+
+  # Optional local image registry for the Kubernetes path (M6):
+  #   docker compose --profile registry up
+  registry:
+    image: registry:2
+    profiles: ["registry"]
+    volumes:
+      - registry-data:/var/lib/registry
+    ports:
+      - "5000:5000"
+
+volumes:
+  pgdata:
+  registry-data:
