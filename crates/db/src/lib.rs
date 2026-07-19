@@ -10,6 +10,7 @@
 
 pub mod jobs;
 pub mod sessions;
+pub mod targets;
 pub mod users;
 
 use sqlx::postgres::{PgPool, PgPoolOptions};

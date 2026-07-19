@@ -11,6 +11,7 @@ use futures::stream::Stream;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
 use crate::auth::{self, CurrentUser};
+use crate::routes_targets;
 use crate::state::AppState;
 
 pub fn router(state: AppState) -> Router {
@@ -20,6 +21,16 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/me", get(auth::me))
+        .route(
+            "/targets",
+            get(routes_targets::list).post(routes_targets::create),
+        )
+        .route(
+            "/targets/{id}",
+            get(routes_targets::get).delete(routes_targets::delete),
+        )
+        .route("/targets/{id}/check", post(routes_targets::check))
+        .route("/targets/{id}/bootstrap", post(routes_targets::bootstrap))
         .route("/deployments/{id}/logs/stream", get(deployment_logs_stream));
 
     // SPA: serve the built dashboard; unknown paths fall back to index.html

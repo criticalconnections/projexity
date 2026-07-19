@@ -14,6 +14,7 @@
 //! is the rollback).
 
 pub mod bootstrap;
+pub mod preflight;
 pub mod transport;
 
 /// Labels stamped on every resource we create. The reconciler only ever
@@ -25,3 +26,6 @@ pub const LABEL_RELEASE: &str = "projexity.release";
 
 /// Name of the shared docker network apps and Caddy join.
 pub const NETWORK_NAME: &str = "projexity";
+
+/// Container name of the managed Caddy proxy.
+pub const CADDY_CONTAINER: &str = "pjx-caddy";

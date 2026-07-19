@@ -1,17 +1,15 @@
 //! In-process background worker: claims jobs from the Postgres queue
 //! (`FOR UPDATE SKIP LOCKED` + lease heartbeat) and dispatches by kind.
-//!
-//! Job kinds land with their milestones: `SetupServer` (M1), `RunDeployment`
-//! (M2), `RunBuild` (M3). Housekeeping (session pruning, job pruning) runs on
-//! a slow tick.
 
 use std::time::Duration;
 
 use projexity_db::jobs::{self, Job};
 
+use crate::jobs_setup;
 use crate::state::AppState;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(20);
 const HOUSEKEEPING_INTERVAL: Duration = Duration::from_secs(3600);
 
 pub async fn run(state: AppState) {
@@ -46,9 +44,35 @@ async fn claim_next(state: &AppState) -> Option<Job> {
 
 async fn execute(state: &AppState, job: Job) {
     tracing::info!(job_id = %job.id, kind = %job.kind, attempt = job.attempts, "job started");
-    // Job kinds are dispatched here as milestones land: SetupServer (M1),
-    // RunDeployment (M2), RunBuild (M3).
-    let result: anyhow::Result<()> = Err(anyhow::anyhow!("unknown job kind: {}", job.kind));
+
+    // Long jobs (bootstrap installs Docker; builds take minutes) must keep
+    // their lease alive or another worker will reclaim them mid-flight.
+    let heartbeat = {
+        let pool = state.pool.clone();
+        let job_id = job.id;
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(HEARTBEAT_INTERVAL);
+            tick.tick().await; // immediate first tick — skip
+            loop {
+                tick.tick().await;
+                match jobs::heartbeat(&pool, job_id).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        tracing::warn!(%job_id, "lost job lease");
+                        break;
+                    }
+                    Err(err) => tracing::error!(%job_id, ?err, "heartbeat failed"),
+                }
+            }
+        })
+    };
+
+    let result: anyhow::Result<()> = match job.kind.as_str() {
+        "setup_server" => jobs_setup::run(state, job.payload.clone()).await,
+        other => Err(anyhow::anyhow!("unknown job kind: {other}")),
+    };
+
+    heartbeat.abort();
 
     let outcome = match result {
         Ok(()) => jobs::succeed(&state.pool, job.id).await,

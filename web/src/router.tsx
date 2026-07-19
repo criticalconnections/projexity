@@ -8,6 +8,7 @@ import { AppLayout } from "./layout/AppLayout";
 import { LoginPage } from "./pages/Login";
 import { ProjectsPage } from "./pages/Projects";
 import { TargetsPage } from "./pages/Targets";
+import { ConnectServerPage } from "./pages/ConnectServer";
 import { DeploymentsPage } from "./pages/Deployments";
 
 const rootRoute = createRootRoute({
@@ -38,6 +39,12 @@ const targetsRoute = createRoute({
   component: TargetsPage,
 });
 
+const connectServerRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/targets/new",
+  component: ConnectServerPage,
+});
+
 const deploymentsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/deployments",
@@ -46,7 +53,12 @@ const deploymentsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([projectsRoute, targetsRoute, deploymentsRoute]),
+  appRoute.addChildren([
+    projectsRoute,
+    targetsRoute,
+    connectServerRoute,
+    deploymentsRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });

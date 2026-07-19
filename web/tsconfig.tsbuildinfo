@@ -1,1 +1,1 @@
-{"root":["./src/api.ts","./src/main.tsx","./src/router.tsx","./src/components/emptystate.tsx","./src/layout/applayout.tsx","./src/pages/deployments.tsx","./src/pages/login.tsx","./src/pages/projects.tsx","./src/pages/targets.tsx"],"version":"5.9.3"}
+{"root":["./src/api.ts","./src/main.tsx","./src/router.tsx","./src/components/emptystate.tsx","./src/layout/applayout.tsx","./src/pages/connectserver.tsx","./src/pages/deployments.tsx","./src/pages/login.tsx","./src/pages/projects.tsx","./src/pages/targets.tsx"],"version":"5.9.3"}

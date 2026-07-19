@@ -77,7 +77,7 @@ Cargo workspace + React dashboard:
 ## Roadmap
 
 - [x] **M0** — Scaffold: workspace, control plane skeleton, dashboard shell, `docker compose up`
-- [ ] **M1** — Connect a server: SSH onboarding, preflight, Docker + Caddy bootstrap
+- [x] **M1** — Connect a server: guided SSH onboarding, preflight checks, Docker + Caddy bootstrap
 - [ ] **M2** — Deploy a prebuilt image with a live HTTPS URL
 - [ ] **M3** — Build pipeline: Dockerfile & Nixpacks, live build logs, rollbacks
 - [ ] **M4** — GitHub App: push-to-deploy

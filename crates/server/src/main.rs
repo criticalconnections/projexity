@@ -1,5 +1,9 @@
 mod auth;
+mod jobs_setup;
 mod routes;
+mod routes_targets;
+mod secrets;
+mod sshfiles;
 mod state;
 mod worker;
 
@@ -18,10 +22,12 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let config = state::Config::from_env()?;
+    let master_key = secrets::MasterKey::from_env()?;
+    std::fs::create_dir_all(&config.state_dir)?;
     let pool = projexity_db::connect(&config.database_url).await?;
     tracing::info!("database connected, migrations applied");
 
-    let app_state = state::AppState::new(pool.clone(), config.clone());
+    let app_state = state::AppState::new(pool.clone(), config.clone(), master_key);
 
     // Background worker: claims jobs from the Postgres queue in-process.
     // One binary, one container — self-hosting stays `docker compose up`.

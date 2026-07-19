@@ -35,6 +35,71 @@ export interface User {
   email: string;
 }
 
+export interface ServerFacts {
+  os: string;
+  arch: string;
+  distro: string | null;
+  docker_version: string | null;
+  port_80_free: boolean;
+  port_443_free: boolean;
+  disk_free_bytes: number | null;
+  memory_total_bytes: number | null;
+  access: "root" | "sudo" | "none";
+  caddy_running: boolean;
+  marker: string | null;
+}
+
+export interface Issue {
+  severity: "error" | "warning" | "info";
+  message: string;
+}
+
+export interface Target {
+  id: string;
+  name: string;
+  kind: "docker_server" | "k8s_cluster";
+  status: "pending" | "bootstrapping" | "ready" | "error";
+  /** JSON-encoded bootstrap step reports. */
+  status_detail: string;
+  host: string;
+  port: number;
+  ssh_user: string;
+  public_key: string;
+  setup_command: string;
+  facts: ServerFacts | null;
+  created_at: string;
+}
+
+export interface BootstrapStep {
+  id: string;
+  label: string;
+  status: "pending" | "running" | "done" | "skipped" | "failed";
+  detail: string;
+}
+
+export interface CheckResponse {
+  ok: boolean;
+  facts: ServerFacts | null;
+  issues: Issue[];
+  error: string | null;
+}
+
+export interface CreateTargetRequest {
+  name: string;
+  host: string;
+  port?: number;
+  ssh_user?: string;
+}
+
+export function parseBootstrapSteps(detail: string): BootstrapStep[] {
+  try {
+    const parsed = JSON.parse(detail);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export const api = {
   me: () => request<User>("/auth/me"),
   login: (email: string, password: string) =>
@@ -48,4 +113,15 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+
+  listTargets: () => request<Target[]>("/targets"),
+  createTarget: (body: CreateTargetRequest) =>
+    request<Target>("/targets", { method: "POST", body: JSON.stringify(body) }),
+  getTarget: (id: string) => request<Target>(`/targets/${id}`),
+  deleteTarget: (id: string) =>
+    request<void>(`/targets/${id}`, { method: "DELETE" }),
+  checkTarget: (id: string) =>
+    request<CheckResponse>(`/targets/${id}/check`, { method: "POST" }),
+  bootstrapTarget: (id: string) =>
+    request<Target>(`/targets/${id}/bootstrap`, { method: "POST" }),
 };

@@ -27,7 +27,13 @@ services:
     environment:
       DATABASE_URL: postgres://projexity:${POSTGRES_PASSWORD:-projexity}@postgres/projexity
       PJX_LISTEN_ADDR: 0.0.0.0:8080
+      # Encrypts stored credentials (SSH keys, kubeconfigs). CHANGE THIS for
+      # anything beyond local evaluation — and don't lose it.
+      PJX_MASTER_KEY: ${PJX_MASTER_KEY:-dev-only-insecure-master-key}
+      PJX_STATE_DIR: /var/lib/projexity
       RUST_LOG: ${RUST_LOG:-projexity=info}
+    volumes:
+      - state:/var/lib/projexity
     ports:
       - "${PJX_PORT:-8080}:8080"
 
@@ -43,4 +49,5 @@ services:
 
 volumes:
   pgdata:
+  state:
   registry-data:
