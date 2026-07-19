@@ -31,6 +31,7 @@ services:
       # anything beyond local evaluation — and don't lose it.
       PJX_MASTER_KEY: ${PJX_MASTER_KEY:-dev-only-insecure-master-key}
       PJX_STATE_DIR: /var/lib/projexity
+      PJX_PUBLIC_URL: ${PJX_PUBLIC_URL:-http://localhost:8080}
       RUST_LOG: ${RUST_LOG:-projexity=info}
     volumes:
       - state:/var/lib/projexity

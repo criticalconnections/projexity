@@ -94,6 +94,25 @@ pub async fn register(
     jar: CookieJar,
     Json(creds): Json<Credentials>,
 ) -> Result<(CookieJar, Json<UserResponse>), Response> {
+    // Single-operator default: once the first account exists, registration
+    // closes unless explicitly opened (PJX_OPEN_REGISTRATION=1). Teams and
+    // invites arrive pre-1.0.
+    let open = std::env::var("PJX_OPEN_REGISTRATION").is_ok_and(|v| v == "1");
+    if !open {
+        let existing = projexity_db::users::count(&state.pool)
+            .await
+            .map_err(internal_error)?;
+        if existing > 0 {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({
+                    "error": "registration is closed on this instance"
+                })),
+            )
+                .into_response());
+        }
+    }
+
     let email = creds.email.trim().to_lowercase();
     if email.is_empty() || !email.contains('@') {
         return Err((
