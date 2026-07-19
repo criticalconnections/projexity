@@ -80,7 +80,7 @@ Cargo workspace + React dashboard:
 - [x] **M1** — Connect a server: guided SSH onboarding, preflight checks, Docker + Caddy bootstrap
 - [x] **M2** — Deploy a prebuilt image: blue/green deploys through Caddy, instant sslip.io domains, live deploy + runtime logs
 - [x] **M3** — Build pipeline: git repo → auto-detected build (Dockerfile, Node, Python, static) on the target's own daemon, live build logs, one-click rollbacks
-- [ ] **M4** — GitHub App: push-to-deploy
+- [x] **M4** — GitHub App: register-your-own via manifest flow, private repos, push-to-deploy
 - [ ] **M5** — One-click apps: Supabase, OpenClaw, n8n, Uptime Kuma, Plausible, MinIO…
 - [ ] **M6** — Kubernetes provider
 - [ ] **M7** — Custom domains UI, docs, launch

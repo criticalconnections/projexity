@@ -12,6 +12,7 @@ import { ConnectServerPage } from "./pages/ConnectServer";
 import { DeploymentsPage } from "./pages/Deployments";
 import { NewProjectPage } from "./pages/NewProject";
 import { ProjectDetailPage } from "./pages/ProjectDetail";
+import { SettingsPage } from "./pages/Settings";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -70,6 +71,12 @@ const deploymentsRoute = createRoute({
   component: DeploymentsPage,
 });
 
+const settingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings",
+  component: SettingsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
@@ -79,6 +86,7 @@ const routeTree = rootRoute.addChildren([
     targetsRoute,
     connectServerRoute,
     deploymentsRoute,
+    settingsRoute,
   ]),
 ]);
 

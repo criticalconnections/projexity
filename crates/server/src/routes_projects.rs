@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::release::{generated_domain, EncEnvPair, ReleaseSnapshot};
+use crate::release::{generated_domain, ReleaseSnapshot};
 use crate::state::AppState;
 
 fn err(status: StatusCode, msg: &str) -> Response {
@@ -312,90 +312,28 @@ pub async fn put_env(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Trigger a deploy of the project's configured image.
+/// Trigger a deploy of the project's configured source.
 pub async fn deploy(
     user: CurrentUser,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<deployments::Deployment>, Response> {
     let p = load(&state, &user, id).await?;
-    let release_id = ReleaseId::new();
-    let (image, repo, locally_built) = match (&p.image, &p.repo_owner, &p.repo_name) {
-        (Some(image), _, _) => (image.clone(), None, false),
-        (None, Some(owner), Some(name)) => (
-            format!(
-                "pjx/{}:{}",
-                p.slug,
-                projexity_provider_docker::docker::release_short(&release_id.to_string())
-            ),
-            Some(crate::release::RepoSpec {
-                owner: owner.clone(),
-                name: name.clone(),
-                branch: p.branch.clone(),
-                dockerfile_path: None,
-            }),
-            true,
-        ),
-        _ => {
-            return Err(err(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "project has no image or repository configured",
-            ))
-        }
-    };
-
-    let env_rows = env_vars::list(&state.pool, p.id).await.map_err(internal)?;
-    let env: Vec<EncEnvPair> = env_rows
-        .into_iter()
-        .filter(|r| !r.is_build_time)
-        .map(|r| {
-            Ok(EncEnvPair {
-                key: r.key,
-                value_enc: String::from_utf8(r.value_ciphertext)?,
-            })
-        })
-        .collect::<anyhow::Result<_>>()
-        .map_err(internal)?;
-    let domains = projects::domains(&state.pool, p.id)
-        .await
-        .map_err(internal)?;
-
-    let snapshot = ReleaseSnapshot {
-        release_id,
-        app_slug: p.slug.clone(),
-        image,
-        container_port: p.container_port as u16,
-        domains,
-        env,
-        repo,
-        locally_built,
-    };
-
-    let deployment = deployments::create(
-        &state.pool,
-        p.id,
-        "deploy",
-        &serde_json::to_value(&snapshot).map_err(|e| internal(e.into()))?,
-    )
-    .await
-    .map_err(internal)?
-    .ok_or_else(|| {
-        err(
+    match crate::deploys::start_deploy(&state, &p, "deploy").await {
+        Ok(Some(d)) => Ok(Json(d)),
+        Ok(None) => Err(err(
             StatusCode::CONFLICT,
             "a deployment is already in progress for this project",
-        )
-    })?;
-
-    projexity_db::jobs::enqueue(
-        &state.pool,
-        "run_deployment",
-        serde_json::json!({ "deployment_id": deployment.id }),
-        None,
-    )
-    .await
-    .map_err(internal)?;
-
-    Ok(Json(deployment))
+        )),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("no image or repository") {
+                Err(err(StatusCode::UNPROCESSABLE_ENTITY, &msg))
+            } else {
+                Err(internal(e))
+            }
+        }
+    }
 }
 
 pub async fn list_deployments(

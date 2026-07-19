@@ -179,8 +179,16 @@ async fn run_build_steps(
         repo.owner, repo.name, repo.branch
     ));
     let workdir = tempfile::tempdir()?;
-    let cloned =
-        clone::shallow_clone(&repo.clone_url(), &repo.branch, workdir.path(), None).await?;
+    // Private repos authenticate with a short-lived installation token (when
+    // a GitHub App is configured); public repos clone anonymously.
+    let auth_header = github_clone_auth(state).await;
+    let cloned = clone::shallow_clone(
+        &repo.clone_url(),
+        &repo.branch,
+        workdir.path(),
+        auth_header.as_deref(),
+    )
+    .await?;
     projexity_db::builds::set_commit(&state.pool, build.id, &cloned.sha, &cloned.message).await?;
     events.progress(format!(
         "at {} — {}",
@@ -236,4 +244,23 @@ pub async fn destroy(state: &AppState, payload: serde_json::Value) -> anyhow::Re
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
     Ok(())
+}
+
+/// Best-effort installation-token auth for clones. Returns None (anonymous)
+/// when no GitHub App is configured or token minting fails — public repos
+/// keep working either way.
+async fn github_clone_auth(state: &AppState) -> Option<String> {
+    let app = projexity_db::github::get_app(&state.pool).await.ok()??;
+    let installations = projexity_db::github::list_installations(&state.pool)
+        .await
+        .ok()?;
+    let inst = installations.first()?;
+    let pem = String::from_utf8(state.master_key.decrypt(&app.pem_enc).ok()?).ok()?;
+    match projexity_github::app::installation_token(app.app_id, &pem, inst.installation_id).await {
+        Ok(token) => Some(projexity_github::app::clone_auth_header(&token)),
+        Err(e) => {
+            tracing::warn!(?e, "installation token unavailable; cloning anonymously");
+            None
+        }
+    }
 }

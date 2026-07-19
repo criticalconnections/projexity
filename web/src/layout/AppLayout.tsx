@@ -62,7 +62,19 @@ export function AppLayout() {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto border-t border-zinc-800 pt-4">
+        <nav className="mt-auto flex flex-col gap-1">
+          <Link
+            to="/settings"
+            className="rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+            activeProps={{
+              className:
+                "rounded-md px-3 py-2 text-sm bg-zinc-800 text-zinc-100",
+            }}
+          >
+            Settings
+          </Link>
+        </nav>
+        <div className="mt-4 border-t border-zinc-800 pt-4">
           <p className="truncate px-2 text-xs text-zinc-500">{me.data.email}</p>
           <button
             onClick={handleLogout}

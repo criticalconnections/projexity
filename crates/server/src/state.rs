@@ -13,6 +13,9 @@ pub struct Config {
     pub web_dist: String,
     /// Writable state directory (SSH runtime files, work dirs).
     pub state_dir: PathBuf,
+    /// Publicly reachable base URL of this instance (GitHub redirects +
+    /// webhook deliveries point here).
+    pub public_url: String,
 }
 
 impl Config {
@@ -25,6 +28,8 @@ impl Config {
             state_dir: std::env::var("PJX_STATE_DIR")
                 .unwrap_or_else(|_| "./data".into())
                 .into(),
+            public_url: std::env::var("PJX_PUBLIC_URL")
+                .unwrap_or_else(|_| "http://localhost:8080".into()),
         })
     }
 }

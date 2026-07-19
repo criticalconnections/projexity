@@ -12,6 +12,7 @@ pub mod builds;
 pub mod deployment_logs;
 pub mod deployments;
 pub mod env_vars;
+pub mod github;
 pub mod jobs;
 pub mod projects;
 pub mod sessions;

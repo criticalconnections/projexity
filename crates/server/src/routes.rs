@@ -6,7 +6,7 @@ use axum::{
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
 use crate::state::AppState;
-use crate::{auth, routes_logs, routes_projects, routes_targets};
+use crate::{auth, routes_github, routes_logs, routes_projects, routes_targets};
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
@@ -55,7 +55,16 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/deployments/{id}/logs/stream",
             get(routes_logs::deploy_logs),
-        );
+        )
+        .route("/github/app", get(routes_github::status))
+        .route("/github/manifest", get(routes_github::manifest))
+        .route("/github/setup/callback", get(routes_github::setup_callback))
+        .route(
+            "/github/install/callback",
+            get(routes_github::install_callback),
+        )
+        .route("/github/repos", get(routes_github::repos))
+        .route("/webhooks/github", post(routes_github::webhook));
 
     // SPA: serve the built dashboard; unknown paths fall back to index.html
     // so client-side routing works on refresh.

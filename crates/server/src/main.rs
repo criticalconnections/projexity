@@ -1,8 +1,10 @@
 mod auth;
+mod deploys;
 mod jobs_deploy;
 mod jobs_setup;
 mod release;
 mod routes;
+mod routes_github;
 mod routes_logs;
 mod routes_projects;
 mod routes_targets;
@@ -17,6 +19,18 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Tiny ops utility: `projexity encrypt <value>` prints the value
+    // encrypted with PJX_MASTER_KEY, for seeding secrets by hand.
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("encrypt") {
+        let value = args
+            .get(2)
+            .ok_or_else(|| anyhow::anyhow!("usage: projexity encrypt <value>"))?;
+        let master_key = secrets::MasterKey::from_env()?;
+        println!("{}", master_key.encrypt(value.as_bytes())?);
+        return Ok(());
+    }
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()

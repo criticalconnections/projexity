@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { api, ApiError, type Target } from "../api";
+import { api, ApiError, type GithubRepo, type Target } from "../api";
 
 type Step = "what" | "where" | "launch";
 
@@ -51,6 +51,15 @@ export function NewProjectPage() {
     queryKey: ["targets"],
     queryFn: api.listTargets,
   });
+
+  const reposQuery = useQuery({
+    queryKey: ["github", "repos"],
+    queryFn: api.githubRepos,
+    enabled: source === "repo",
+    staleTime: Infinity,
+  });
+  const githubConnected = reposQuery.data?.connected ?? false;
+  const githubRepos = reposQuery.data?.repos ?? [];
   const readyTargets = (targetsQuery.data ?? []).filter(
     (t) => t.status === "ready",
   );
@@ -189,34 +198,55 @@ export function NewProjectPage() {
                       </label>
                     </div>
                   ) : (
-                    <div className="mt-5 flex gap-4">
-                      <label className="flex-1 text-sm text-zinc-500">
-                        GitHub repository
-                        <input
-                          value={repo}
-                          onChange={(e) => setRepo(e.target.value)}
-                          placeholder="owner/repo"
-                          spellCheck={false}
-                          autoComplete="off"
-                          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+                    <>
+                      {githubConnected && githubRepos.length > 0 && (
+                        <RepoPicker
+                          repos={githubRepos}
+                          onPick={(r) => {
+                            setRepo(r.full_name);
+                            setBranch(r.default_branch);
+                          }}
                         />
-                        <span className="mt-1 block text-xs text-zinc-600">
-                          Public repos for now — GitHub App with private repos
-                          and push-to-deploy is next. No Dockerfile needed:
-                          Node, Python, and static sites are auto-detected.
-                        </span>
-                      </label>
-                      <label className="w-36 text-sm text-zinc-500">
-                        Branch
-                        <input
-                          value={branch}
-                          onChange={(e) => setBranch(e.target.value)}
-                          spellCheck={false}
-                          autoComplete="off"
-                          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none focus:border-emerald-500"
-                        />
-                      </label>
-                    </div>
+                      )}
+                      <div className="mt-5 flex gap-4">
+                        <label className="flex-1 text-sm text-zinc-500">
+                          GitHub repository
+                          <input
+                            value={repo}
+                            onChange={(e) => setRepo(e.target.value)}
+                            placeholder="owner/repo"
+                            spellCheck={false}
+                            autoComplete="off"
+                            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+                          />
+                          <span className="mt-1 block text-xs text-zinc-600">
+                            Public repos for now — GitHub App with private
+                            repos and push-to-deploy is next. No Dockerfile
+                            needed: Node, Python, and static sites are
+                            auto-detected.
+                          </span>
+                          {reposQuery.data && !githubConnected && (
+                            <Link
+                              to="/settings"
+                              className="mt-1 block text-xs text-zinc-500 transition hover:text-emerald-400"
+                            >
+                              Connect GitHub to pick from your repos and deploy
+                              private ones →
+                            </Link>
+                          )}
+                        </label>
+                        <label className="w-36 text-sm text-zinc-500">
+                          Branch
+                          <input
+                            value={branch}
+                            onChange={(e) => setBranch(e.target.value)}
+                            spellCheck={false}
+                            autoComplete="off"
+                            className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none focus:border-emerald-500"
+                          />
+                        </label>
+                      </div>
+                    </>
                   )}
                   <div className="mt-6">
                     <label className="text-sm text-zinc-500">
@@ -429,6 +459,60 @@ function TargetOption({
         ✓
       </span>
     </button>
+  );
+}
+
+/** Compact searchable list of the user's GitHub-App repos. Picking one only
+ * pre-fills the manual repo/branch inputs below — those stay the source of
+ * truth for submission. */
+function RepoPicker({
+  repos,
+  onPick,
+}: {
+  repos: GithubRepo[];
+  onPick: (repo: GithubRepo) => void;
+}) {
+  const [filter, setFilter] = useState("");
+  const shown = repos
+    .filter((r) =>
+      r.full_name.toLowerCase().includes(filter.trim().toLowerCase()),
+    )
+    .slice(0, 6);
+
+  return (
+    <div className="mt-5 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+      <input
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Search your repositories…"
+        spellCheck={false}
+        autoComplete="off"
+        className="block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+      />
+      <div className="mt-2">
+        {shown.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-zinc-600">
+            No repositories match "{filter}".
+          </p>
+        ) : (
+          shown.map((r) => (
+            <button
+              key={r.full_name}
+              type="button"
+              onClick={() => onPick(r)}
+              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left font-mono text-sm text-zinc-300 transition hover:bg-zinc-800/60 hover:text-zinc-100"
+            >
+              <span className="truncate">{r.full_name}</span>
+              {r.private && (
+                <span className="ml-2 shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 font-sans text-[10px] font-medium text-zinc-400">
+                  private
+                </span>
+              )}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 

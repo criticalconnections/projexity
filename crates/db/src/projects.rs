@@ -151,3 +151,22 @@ pub async fn add_domain(
     .await?;
     Ok(())
 }
+
+/// Projects wired to a given repo + branch (webhook fan-out).
+pub async fn find_by_repo(
+    pool: &PgPool,
+    owner: &str,
+    name: &str,
+    branch: &str,
+) -> anyhow::Result<Vec<Project>> {
+    let rows = sqlx::query(&format!(
+        "SELECT {COLS} FROM projects
+         WHERE repo_owner = $1 AND repo_name = $2 AND branch = $3"
+    ))
+    .bind(owner)
+    .bind(name)
+    .bind(branch)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(row_to_project).collect())
+}

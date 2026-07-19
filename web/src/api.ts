@@ -155,6 +155,36 @@ export interface CreateProjectRequest {
   container_port: number;
 }
 
+export interface GithubInstallation {
+  installation_id: number;
+  account_login: string;
+}
+
+export interface GithubAppStatus {
+  configured: boolean;
+  app_slug: string | null;
+  app_url: string | null;
+  installations: GithubInstallation[];
+  webhook_url: string;
+  public_url_is_local: boolean;
+}
+
+export interface GithubManifest {
+  action_url: string;
+  manifest: Record<string, unknown>;
+}
+
+export interface GithubRepo {
+  full_name: string;
+  private: boolean;
+  default_branch: string;
+}
+
+export interface GithubReposResponse {
+  connected: boolean;
+  repos: GithubRepo[];
+}
+
 /** A deployment that is still in flight (not yet in a terminal-ish state). */
 export function isDeploymentActive(d: Deployment | null | undefined): boolean {
   return (
@@ -228,4 +258,8 @@ export const api = {
   getDeployment: (id: string) => request<Deployment>(`/deployments/${id}`),
   rollbackDeployment: (id: string) =>
     request<Deployment>(`/deployments/${id}/rollback`, { method: "POST" }),
+
+  githubStatus: () => request<GithubAppStatus>("/github/app"),
+  githubManifest: () => request<GithubManifest>("/github/manifest"),
+  githubRepos: () => request<GithubReposResponse>("/github/repos"),
 };
