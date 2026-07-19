@@ -29,6 +29,8 @@ pub struct ProjectResponse {
     pub slug: String,
     pub target_id: Option<Uuid>,
     pub image: Option<String>,
+    pub repo: Option<String>,
+    pub branch: String,
     pub container_port: i32,
     pub domains: Vec<String>,
     pub latest_deployment: Option<deployments::Deployment>,
@@ -47,6 +49,11 @@ async fn to_response(state: &AppState, p: &projects::Project) -> anyhow::Result<
         slug: p.slug.clone(),
         target_id: p.target_id,
         image: p.image.clone(),
+        repo: match (&p.repo_owner, &p.repo_name) {
+            (Some(o), Some(n)) => Some(format!("{o}/{n}")),
+            _ => None,
+        },
+        branch: p.branch.clone(),
         container_port: p.container_port,
         domains,
         latest_deployment: latest,
@@ -70,10 +77,38 @@ fn slugify(name: &str) -> String {
 pub struct CreateProject {
     pub name: String,
     pub target_id: Uuid,
-    /// Prebuilt image ref (`nginx:latest`). Git-based projects arrive in M3+.
-    pub image: String,
+    /// Prebuilt image ref (`nginx:latest`) — exactly one of image/repo.
+    #[serde(default)]
+    pub image: Option<String>,
+    /// Public GitHub repo as `owner/name` — exactly one of image/repo.
+    #[serde(default)]
+    pub repo: Option<String>,
+    #[serde(default = "default_branch")]
+    pub branch: String,
     #[serde(default = "default_port")]
     pub container_port: i32,
+}
+
+fn default_branch() -> String {
+    "main".into()
+}
+
+/// Parse "owner/name" or a full github.com URL into (owner, name).
+fn parse_repo(input: &str) -> Option<(String, String)> {
+    let cleaned = input
+        .trim()
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .trim_start_matches("github.com/")
+        .trim_end_matches(".git")
+        .trim_matches('/');
+    let mut parts = cleaned.split('/');
+    let owner = parts.next()?.to_string();
+    let name = parts.next()?.to_string();
+    if owner.is_empty() || name.is_empty() || parts.next().is_some() {
+        return None;
+    }
+    Some((owner, name))
 }
 
 fn default_port() -> i32 {
@@ -93,12 +128,27 @@ pub async fn create(
             "give the project a name",
         ));
     }
-    if req.image.trim().is_empty() {
-        return Err(err(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "an image is required",
-        ));
-    }
+    let image = req
+        .image
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let repo_input = req.repo.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let repo = match (image, repo_input) {
+        (Some(_), Some(_)) | (None, None) => {
+            return Err(err(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "choose exactly one source: a Docker image or a repository",
+            ))
+        }
+        (None, Some(r)) => Some(parse_repo(r).ok_or_else(|| {
+            err(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "repository must look like owner/name (or a github.com URL)",
+            )
+        })?),
+        (Some(_), None) => None,
+    };
     if !(1..=65535).contains(&req.container_port) {
         return Err(err(StatusCode::UNPROCESSABLE_ENTITY, "invalid port"));
     }
@@ -119,7 +169,9 @@ pub async fn create(
         target.id,
         name,
         &slug,
-        Some(req.image.trim()),
+        image,
+        repo.as_ref().map(|(o, n)| (o.as_str(), n.as_str())),
+        &req.branch,
         req.container_port,
     )
     .await
@@ -267,12 +319,30 @@ pub async fn deploy(
     Path(id): Path<Uuid>,
 ) -> Result<Json<deployments::Deployment>, Response> {
     let p = load(&state, &user, id).await?;
-    let image = p.image.clone().ok_or_else(|| {
-        err(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "project has no image configured",
-        )
-    })?;
+    let release_id = ReleaseId::new();
+    let (image, repo, locally_built) = match (&p.image, &p.repo_owner, &p.repo_name) {
+        (Some(image), _, _) => (image.clone(), None, false),
+        (None, Some(owner), Some(name)) => (
+            format!(
+                "pjx/{}:{}",
+                p.slug,
+                projexity_provider_docker::docker::release_short(&release_id.to_string())
+            ),
+            Some(crate::release::RepoSpec {
+                owner: owner.clone(),
+                name: name.clone(),
+                branch: p.branch.clone(),
+                dockerfile_path: None,
+            }),
+            true,
+        ),
+        _ => {
+            return Err(err(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "project has no image or repository configured",
+            ))
+        }
+    };
 
     let env_rows = env_vars::list(&state.pool, p.id).await.map_err(internal)?;
     let env: Vec<EncEnvPair> = env_rows
@@ -291,12 +361,14 @@ pub async fn deploy(
         .map_err(internal)?;
 
     let snapshot = ReleaseSnapshot {
-        release_id: ReleaseId::new(),
+        release_id,
         app_slug: p.slug.clone(),
         image,
         container_port: p.container_port as u16,
         domains,
         env,
+        repo,
+        locally_built,
     };
 
     let deployment = deployments::create(
@@ -358,4 +430,48 @@ pub async fn get_deployment(
         .map_err(internal)?
         .ok_or_else(|| err(StatusCode::NOT_FOUND, "deployment not found"))?;
     Ok(Json(d))
+}
+
+/// Roll back: replay an old deployment's snapshot under a fresh release id.
+/// The snapshot is immutable (image + env as of that deploy) and rollbacks
+/// never rebuild — the repo field is stripped.
+pub async fn rollback(
+    user: CurrentUser,
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<deployments::Deployment>, Response> {
+    let old = deployments::find_for_user(&state.pool, user.id, id)
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| err(StatusCode::NOT_FOUND, "deployment not found"))?;
+    let mut snapshot: ReleaseSnapshot =
+        serde_json::from_value(old.release_spec.clone()).map_err(|e| internal(e.into()))?;
+    snapshot.release_id = ReleaseId::new();
+    snapshot.repo = None;
+
+    let deployment = deployments::create(
+        &state.pool,
+        old.project_id,
+        "rollback",
+        &serde_json::to_value(&snapshot).map_err(|e| internal(e.into()))?,
+    )
+    .await
+    .map_err(internal)?
+    .ok_or_else(|| {
+        err(
+            StatusCode::CONFLICT,
+            "a deployment is already in progress for this project",
+        )
+    })?;
+
+    projexity_db::jobs::enqueue(
+        &state.pool,
+        "run_deployment",
+        serde_json::json!({ "deployment_id": deployment.id }),
+        None,
+    )
+    .await
+    .map_err(internal)?;
+
+    Ok(Json(deployment))
 }

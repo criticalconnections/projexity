@@ -6,6 +6,8 @@
 //! (honoring .dockerignore, size-capped), and stream it to the destination
 //! builder — the target server's own BuildKit for Docker targets.
 
+pub mod clone;
+pub mod context;
 pub mod plan;
 
 /// Default cap on the streamed build context. Users *will* have 2GB of

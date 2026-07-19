@@ -25,7 +25,7 @@ pub use provider::{
     TargetInfo,
 };
 pub use release::{
-    DeployPolicy, DomainSpec, EnvPair, HealthSpec, ImageRef, PortProtocol, PortSpec, ReleaseSpec,
-    ResourceSpec, SealedEnv,
+    DeployPolicy, DomainSpec, EnvPair, HealthSpec, ImageRef, PortProtocol, PortSpec, PullPolicy,
+    ReleaseSpec, ResourceSpec, SealedEnv,
 };
 pub use state::{BuildStatus, DeploymentStatus, TargetStatus};

@@ -126,10 +126,94 @@ async fn execute(state: &AppState, deployment: &deployments::Deployment) -> anyh
         }
     });
 
+    // Git-based release: build the image on the target first.
+    if let Some(repo) = &snapshot.repo {
+        if let Err(e) = build_phase(state, deployment, repo, &snapshot, &server, &events).await {
+            drop(events);
+            let _ = writer.await;
+            return Err(e);
+        }
+    }
+
     let result = server.deploy_release(&spec, &events).await;
     drop(events);
     let _ = writer.await;
     result.map_err(|e| anyhow::anyhow!(e))
+}
+
+/// Clone → detect plan → pack context → remote build. Streams progress into
+/// the event sink and records a `builds` row for history.
+async fn build_phase(
+    state: &AppState,
+    deployment: &deployments::Deployment,
+    repo: &crate::release::RepoSpec,
+    snapshot: &ReleaseSnapshot,
+    server: &DockerServer,
+    events: &EventSink,
+) -> anyhow::Result<()> {
+    let build = projexity_db::builds::create(&state.pool, deployment.project_id).await?;
+    let result = run_build_steps(state, &build, repo, snapshot, server, events).await;
+    match &result {
+        Ok(()) => projexity_db::builds::set_status(&state.pool, build.id, "succeeded").await?,
+        Err(e) => {
+            projexity_db::builds::set_error(&state.pool, build.id, &format!("{e:#}")).await?;
+            projexity_db::builds::set_status(&state.pool, build.id, "failed").await?;
+        }
+    }
+    result
+}
+
+async fn run_build_steps(
+    state: &AppState,
+    build: &projexity_db::builds::Build,
+    repo: &crate::release::RepoSpec,
+    snapshot: &ReleaseSnapshot,
+    server: &DockerServer,
+    events: &EventSink,
+) -> anyhow::Result<()> {
+    use projexity_build::{clone, context, plan};
+
+    events.step_started("clone");
+    events.progress(format!(
+        "Cloning {}/{} ({})",
+        repo.owner, repo.name, repo.branch
+    ));
+    let workdir = tempfile::tempdir()?;
+    let cloned =
+        clone::shallow_clone(&repo.clone_url(), &repo.branch, workdir.path(), None).await?;
+    projexity_db::builds::set_commit(&state.pool, build.id, &cloned.sha, &cloned.message).await?;
+    events.progress(format!(
+        "at {} — {}",
+        &cloned.sha[..cloned.sha.len().min(8)],
+        cloned.message
+    ));
+    events.step_completed("clone");
+
+    events.step_started("build");
+    projexity_db::builds::set_status(&state.pool, build.id, "building").await?;
+    let detected = plan::detect(
+        workdir.path(),
+        repo.dockerfile_path.as_deref(),
+        snapshot.container_port,
+    )?;
+    events.progress(detected.summary());
+    let tarball = context::pack(
+        workdir.path(),
+        &detected,
+        projexity_build::DEFAULT_CONTEXT_LIMIT_BYTES,
+    )?;
+    events.progress(format!(
+        "build context: {:.1} MiB",
+        tarball.len() as f64 / (1024.0 * 1024.0)
+    ));
+    server
+        .build_image(tarball, &snapshot.image, events)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+    projexity_db::builds::set_image(&state.pool, build.id, &snapshot.image).await?;
+    events.progress(format!("built {}", snapshot.image));
+    events.step_completed("build");
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]

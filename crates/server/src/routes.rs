@@ -49,6 +49,10 @@ pub fn router(state: AppState) -> Router {
         .route("/deployments", get(routes_projects::list_all_deployments))
         .route("/deployments/{id}", get(routes_projects::get_deployment))
         .route(
+            "/deployments/{id}/rollback",
+            post(routes_projects::rollback),
+        )
+        .route(
             "/deployments/{id}/logs/stream",
             get(routes_logs::deploy_logs),
         );

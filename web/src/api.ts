@@ -132,6 +132,8 @@ export interface Project {
   slug: string;
   target_id: string | null;
   image: string | null;
+  repo: string | null;
+  branch: string;
   container_port: number;
   domains: string[];
   latest_deployment: Deployment | null;
@@ -147,7 +149,9 @@ export interface EnvVar {
 export interface CreateProjectRequest {
   name: string;
   target_id: string;
-  image: string;
+  image?: string;
+  repo?: string;
+  branch?: string;
   container_port: number;
 }
 
@@ -222,4 +226,6 @@ export const api = {
     request<Deployment[]>(`/projects/${id}/deployments`),
   listDeployments: () => request<Deployment[]>("/deployments"),
   getDeployment: (id: string) => request<Deployment>(`/deployments/${id}`),
+  rollbackDeployment: (id: string) =>
+    request<Deployment>(`/deployments/${id}/rollback`, { method: "POST" }),
 };

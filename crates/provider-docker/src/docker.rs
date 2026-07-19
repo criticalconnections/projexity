@@ -165,8 +165,24 @@ impl DockerServer {
         let domains: Vec<String> = spec.domains.iter().map(|d| d.hostname.clone()).collect();
 
         events.step_started("pull");
-        events.progress(format!("Pulling {}", spec.image));
-        self.pull_image(&docker, &spec.image.name, events).await?;
+        match spec.image.pull_policy {
+            projexity_core::PullPolicy::Always => {
+                events.progress(format!("Pulling {}", spec.image));
+                self.pull_image(&docker, &spec.image.name, events).await?;
+            }
+            projexity_core::PullPolicy::Never => {
+                // Locally-built image: it must already be in the daemon's
+                // store (the build ran right here).
+                docker.inspect_image(&spec.image.name).await.map_err(|_| {
+                    DeployError::ImageUnavailable(format!(
+                        "image {} is not on the server — it may have been pruned; \
+                             deploy again to rebuild it",
+                        spec.image
+                    ))
+                })?;
+                events.progress(format!("using locally built image {}", spec.image));
+            }
+        }
         events.step_completed("pull");
 
         // Start green (skip if it already exists from a crashed attempt).
@@ -393,6 +409,54 @@ impl DockerServer {
                 }
             });
         Ok((stream, guard))
+    }
+
+    /// Build an image on this server's daemon from a tar context, streaming
+    /// build output into the event sink. Uses the classic builder (works on
+    /// every daemon; BuildKit is a later upgrade).
+    pub async fn build_image(
+        &self,
+        context_tar: Vec<u8>,
+        tag: &str,
+        events: &EventSink,
+    ) -> Result<(), projexity_core::BuildError> {
+        use projexity_core::BuildError;
+        let (docker, _guard) = self
+            .docker()
+            .await
+            .map_err(|e| BuildError::Transport(e.to_string()))?;
+        let opts = bollard::query_parameters::BuildImageOptionsBuilder::default()
+            .t(tag)
+            .rm(true)
+            .build();
+        let mut stream =
+            docker.build_image(opts, None, Some(bollard::body_full(context_tar.into())));
+        while let Some(msg) = stream.next().await {
+            match msg {
+                Ok(info) => {
+                    if let Some(err) = info.error {
+                        return Err(BuildError::Build(err));
+                    }
+                    if let Some(line) = info.stream {
+                        for l in line.lines() {
+                            if !l.trim().is_empty() {
+                                events.progress(l.to_string());
+                            }
+                        }
+                    }
+                    if let Some(status) = info.status {
+                        if status.starts_with("Pulling from")
+                            || status.starts_with("Status")
+                            || status.contains("Pull complete")
+                        {
+                            events.progress(status);
+                        }
+                    }
+                }
+                Err(e) => return Err(BuildError::Build(e.to_string())),
+            }
+        }
+        Ok(())
     }
 
     async fn container_log_tail(&self, docker: &Docker, name: &str, lines: i64) -> String {

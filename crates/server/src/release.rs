@@ -20,6 +20,21 @@ pub struct EncEnvPair {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepoSpec {
+    pub owner: String,
+    pub name: String,
+    pub branch: String,
+    #[serde(default)]
+    pub dockerfile_path: Option<String>,
+}
+
+impl RepoSpec {
+    pub fn clone_url(&self) -> String {
+        format!("https://github.com/{}/{}.git", self.owner, self.name)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReleaseSnapshot {
     pub release_id: ReleaseId,
     pub app_slug: String,
@@ -27,6 +42,13 @@ pub struct ReleaseSnapshot {
     pub container_port: u16,
     pub domains: Vec<String>,
     pub env: Vec<EncEnvPair>,
+    /// Set on git-based deploys: build this repo into `image` first.
+    /// Rollbacks strip it — the old image is reused, never rebuilt.
+    #[serde(default)]
+    pub repo: Option<RepoSpec>,
+    /// The image only exists on the target's daemon (built there); never pull.
+    #[serde(default)]
+    pub locally_built: bool,
 }
 
 impl ReleaseSnapshot {
@@ -53,6 +75,11 @@ impl ReleaseSnapshot {
             image: ImageRef {
                 name: self.image.clone(),
                 digest: None,
+                pull_policy: if self.locally_built {
+                    projexity_core::PullPolicy::Never
+                } else {
+                    projexity_core::PullPolicy::Always
+                },
             },
             env: SealedEnv::new(pairs),
             ports: vec![PortSpec {

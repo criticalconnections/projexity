@@ -8,6 +8,7 @@
 //! contributors can build without a database running; integration tests cover
 //! the SQL.
 
+pub mod builds;
 pub mod deployment_logs;
 pub mod deployments;
 pub mod env_vars;

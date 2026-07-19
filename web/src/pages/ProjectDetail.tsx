@@ -69,6 +69,19 @@ export function ProjectDetailPage({ id }: { id: string }) {
       ),
   });
 
+  const rollback = useMutation({
+    mutationFn: (deploymentId: string) => api.rollbackDeployment(deploymentId),
+    onSuccess: (d) => {
+      setDeployError(null);
+      setLogId(d.id);
+      refetchAll();
+    },
+    onError: (e) =>
+      setDeployError(
+        e instanceof ApiError ? e.message : "Something went wrong",
+      ),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteProject(id),
     onSuccess: () => {
@@ -254,6 +267,8 @@ export function ProjectDetailPage({ id }: { id: string }) {
             loading={deploymentsQuery.isLoading}
             selectedId={logId}
             onSelect={setLogId}
+            onRollback={(deploymentId) => rollback.mutate(deploymentId)}
+            rollbackBusy={rollback.isPending}
           />
         )}
         {tab === "env" && <EnvEditor projectId={id} />}
@@ -270,11 +285,15 @@ function DeploymentList({
   loading,
   selectedId,
   onSelect,
+  onRollback,
+  rollbackBusy,
 }: {
   deployments: Deployment[];
   loading: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onRollback: (id: string) => void;
+  rollbackBusy: boolean;
 }) {
   if (loading) return <p className="text-sm text-zinc-500">Loading…</p>;
   if (deployments.length === 0) {
@@ -303,6 +322,27 @@ function DeploymentList({
           {d.kind === "rollback" && (
             <span className="rounded bg-zinc-500/10 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
               rollback
+            </span>
+          )}
+          {d.status === "superseded" && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!rollbackBusy) onRollback(d.id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.stopPropagation();
+                  if (!rollbackBusy) onRollback(d.id);
+                }
+              }}
+              className={`rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300 ${
+                rollbackBusy ? "pointer-events-none opacity-40" : ""
+              }`}
+            >
+              Roll back
             </span>
           )}
           <StatusPill status={d.status} />

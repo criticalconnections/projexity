@@ -27,6 +27,18 @@ pub struct ReleaseSpec {
     pub deploy_policy: DeployPolicy,
 }
 
+/// Whether the target should pull the image before running it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PullPolicy {
+    /// Registry images: always pull (users expect `nginx:latest` to refresh).
+    #[default]
+    Always,
+    /// Locally-built images: never pull — the image only exists on the
+    /// target's daemon, where the build ran.
+    Never,
+}
+
 /// A container image reference, optionally pinned by digest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageRef {
@@ -34,6 +46,8 @@ pub struct ImageRef {
     pub name: String,
     /// `sha256:...` — set after a build or first pull; deploys should pin it.
     pub digest: Option<String>,
+    #[serde(default)]
+    pub pull_policy: PullPolicy,
 }
 
 impl fmt::Display for ImageRef {

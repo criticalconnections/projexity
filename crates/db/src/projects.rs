@@ -46,11 +46,14 @@ pub async fn create(
     name: &str,
     slug: &str,
     image: Option<&str>,
+    repo: Option<(&str, &str)>,
+    branch: &str,
     container_port: i32,
 ) -> anyhow::Result<Option<Project>> {
     let row = sqlx::query(&format!(
-        "INSERT INTO projects (id, user_id, target_id, name, slug, image, container_port)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO projects (id, user_id, target_id, name, slug, image, repo_owner, repo_name,
+                               branch, container_port)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (slug) DO NOTHING
          RETURNING {COLS}"
     ))
@@ -60,6 +63,9 @@ pub async fn create(
     .bind(name)
     .bind(slug)
     .bind(image)
+    .bind(repo.map(|r| r.0))
+    .bind(repo.map(|r| r.1))
+    .bind(branch)
     .bind(container_port)
     .fetch_optional(pool)
     .await?;

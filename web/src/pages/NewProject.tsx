@@ -17,7 +17,10 @@ export function NewProjectPage() {
   const [step, setStep] = useState<Step>("what");
   const [direction, setDirection] = useState(1);
   const [name, setName] = useState("");
+  const [source, setSource] = useState<"repo" | "image">("repo");
   const [image, setImage] = useState("");
+  const [repo, setRepo] = useState("");
+  const [branch, setBranch] = useState("main");
   const [port, setPort] = useState("80");
   const [targetId, setTargetId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -62,7 +65,9 @@ export function NewProjectPage() {
       const project = await api.createProject({
         name: name.trim(),
         target_id: targetId!,
-        image: image.trim(),
+        ...(source === "image"
+          ? { image: image.trim() }
+          : { repo: repo.trim(), branch: branch.trim() || "main" }),
         container_port: parseInt(port, 10) || 80,
       });
       // First deploy kicks off immediately; if it can't start, the project
@@ -85,7 +90,8 @@ export function NewProjectPage() {
     /^\d+$/.test(port.trim()) &&
     parseInt(port, 10) > 0 &&
     parseInt(port, 10) < 65536;
-  const whatValid = !!name.trim() && !!image.trim() && portValid;
+  const sourceValid = source === "image" ? !!image.trim() : !!repo.trim();
+  const whatValid = !!name.trim() && sourceValid && portValid;
   const selectedTarget = readyTargets.find((t) => t.id === targetId) ?? null;
 
   return (
@@ -144,22 +150,74 @@ export function NewProjectPage() {
                     placeholder="my-app"
                     autoFocus
                   />
-                  <div className="mt-8">
-                    <label className="text-sm text-zinc-500">
-                      Docker image
-                      <input
-                        value={image}
-                        onChange={(e) => setImage(e.target.value)}
-                        placeholder="nginx:latest"
-                        spellCheck={false}
-                        autoComplete="off"
-                        className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
-                      />
-                      <span className="mt-1 block text-xs text-zinc-600">
-                        Any public Docker image. Git deploys are coming next.
-                      </span>
-                    </label>
+                  <div className="mt-8 flex gap-2">
+                    {(
+                      [
+                        ["repo", "Git repository"],
+                        ["image", "Docker image"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSource(key)}
+                        className={`rounded-lg border px-4 py-2 text-sm transition ${
+                          source === key
+                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                            : "border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
+                  {source === "image" ? (
+                    <div className="mt-5">
+                      <label className="text-sm text-zinc-500">
+                        Docker image
+                        <input
+                          value={image}
+                          onChange={(e) => setImage(e.target.value)}
+                          placeholder="nginx:latest"
+                          spellCheck={false}
+                          autoComplete="off"
+                          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+                        />
+                        <span className="mt-1 block text-xs text-zinc-600">
+                          Any public Docker image.
+                        </span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="mt-5 flex gap-4">
+                      <label className="flex-1 text-sm text-zinc-500">
+                        GitHub repository
+                        <input
+                          value={repo}
+                          onChange={(e) => setRepo(e.target.value)}
+                          placeholder="owner/repo"
+                          spellCheck={false}
+                          autoComplete="off"
+                          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500"
+                        />
+                        <span className="mt-1 block text-xs text-zinc-600">
+                          Public repos for now — GitHub App with private repos
+                          and push-to-deploy is next. No Dockerfile needed:
+                          Node, Python, and static sites are auto-detected.
+                        </span>
+                      </label>
+                      <label className="w-36 text-sm text-zinc-500">
+                        Branch
+                        <input
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          spellCheck={false}
+                          autoComplete="off"
+                          className="mt-1 block w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-zinc-200 outline-none focus:border-emerald-500"
+                        />
+                      </label>
+                    </div>
+                  )}
                   <div className="mt-6">
                     <label className="text-sm text-zinc-500">
                       Container port
@@ -217,7 +275,9 @@ export function NewProjectPage() {
                   <div className="space-y-2">
                     {[
                       ["Name", name.trim()],
-                      ["Image", image.trim()],
+                      source === "image"
+                        ? ["Image", image.trim()]
+                        : ["Repository", `${repo.trim()} (${branch.trim() || "main"})`],
                       ["Container port", port],
                       ["Server", selectedTarget?.name ?? "—"],
                     ].map(([label, value], i) => (
