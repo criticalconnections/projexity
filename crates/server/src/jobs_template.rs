@@ -129,9 +129,18 @@ pub async fn install(state: &AppState, payload: serde_json::Value) -> anyhow::Re
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct UninstallPayload {
+    template_deployment_id: Uuid,
+    /// Also delete named data volumes (default keeps them).
+    #[serde(default)]
+    purge: bool,
+}
+
 pub async fn uninstall(state: &AppState, payload: serde_json::Value) -> anyhow::Result<()> {
-    let Payload {
+    let UninstallPayload {
         template_deployment_id: id,
+        purge,
     } = serde_json::from_value(payload)?;
     let Some(d) = td::find(&state.pool, id).await? else {
         return Ok(());
@@ -140,14 +149,13 @@ pub async fn uninstall(state: &AppState, payload: serde_json::Value) -> anyhow::
         let config = target.docker_config()?;
         let channel = channel_for(state, target.id, &config)?;
         let server = DockerServer { channel };
-        // Keep named volumes: uninstalling an app shouldn't silently destroy
-        // its data. (A "wipe data" option can layer on later.)
+        // `purge` removes named volumes too — deleting all of the app's data.
         server
-            .uninstall_stack(&d.slug, false)
+            .uninstall_stack(&d.slug, purge)
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
     }
     td::delete(&state.pool, id).await?;
-    tracing::info!(app = %d.slug, "template stack removed");
+    tracing::info!(app = %d.slug, purge, "template stack removed");
     Ok(())
 }

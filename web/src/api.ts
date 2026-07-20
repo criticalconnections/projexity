@@ -306,8 +306,10 @@ export const api = {
   installApp: (body: InstallAppRequest) =>
     request<AppInstall>("/apps", { method: "POST", body: JSON.stringify(body) }),
   getApp: (id: string) => request<AppInstall>(`/apps/${id}`),
-  uninstallApp: (id: string) =>
-    request<void>(`/apps/${id}`, { method: "DELETE" }),
+  uninstallApp: (id: string, purge = false) =>
+    request<void>(`/apps/${id}${purge ? "?purge=true" : ""}`, {
+      method: "DELETE",
+    }),
 
   githubStatus: () => request<GithubAppStatus>("/github/app"),
   githubManifest: () => request<GithubManifest>("/github/manifest"),

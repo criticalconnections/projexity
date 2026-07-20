@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -151,10 +151,18 @@ pub async fn get(
         .ok_or_else(|| err(StatusCode::NOT_FOUND, "app not found"))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UninstallQuery {
+    /// Also delete the app's named data volumes (irreversible).
+    #[serde(default)]
+    pub purge: bool,
+}
+
 pub async fn uninstall(
     user: CurrentUser,
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    Query(q): Query<UninstallQuery>,
 ) -> Result<StatusCode, Response> {
     let d = td::find_for_user(&state.pool, user.id, id)
         .await
@@ -166,7 +174,7 @@ pub async fn uninstall(
     projexity_db::jobs::enqueue(
         &state.pool,
         "uninstall_template",
-        serde_json::json!({ "template_deployment_id": d.id }),
+        serde_json::json!({ "template_deployment_id": d.id, "purge": q.purge }),
         None,
     )
     .await
