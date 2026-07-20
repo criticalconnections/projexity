@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
@@ -391,9 +391,12 @@ function Intro({ onNext }: { onNext: () => void }) {
         <button onClick={onNext} autoFocus className="btn-primary px-6 py-3">
           Let's go
         </button>
-        <span className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-sm text-zinc-500">
-          Kubernetes cluster — soon
-        </span>
+        <Link
+          to="/targets/new-cluster"
+          className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-sm text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-300"
+        >
+          Kubernetes cluster instead?
+        </Link>
       </div>
     </div>
   );
@@ -402,7 +405,9 @@ function Intro({ onNext }: { onNext: () => void }) {
 function KeyStep({ target, onNext }: { target: Target; onNext: () => void }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    await navigator.clipboard.writeText(target.setup_command);
+    // This wizard only ever creates docker_server targets, which always
+    // carry a setup command.
+    await navigator.clipboard.writeText(target.setup_command!);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

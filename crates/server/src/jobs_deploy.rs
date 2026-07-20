@@ -40,13 +40,10 @@ pub async fn run(state: &AppState, payload: serde_json::Value) -> anyhow::Result
     let result = execute(state, &deployment).await;
 
     match result {
-        Ok(container) => {
-            deployments::set_provider_ref(
-                &state.pool,
-                deployment_id,
-                &serde_json::json!({ "container": container }),
-            )
-            .await?;
+        Ok(provider_ref_json) => {
+            let provider_ref: serde_json::Value = serde_json::from_str(&provider_ref_json)
+                .unwrap_or_else(|_| serde_json::json!({ "ref": provider_ref_json }));
+            deployments::set_provider_ref(&state.pool, deployment_id, &provider_ref).await?;
             deployments::transition(&state.pool, deployment_id, &["deploying"], "verifying")
                 .await?;
             deployments::transition(&state.pool, deployment_id, &["verifying"], "running").await?;
@@ -94,16 +91,13 @@ async fn execute(state: &AppState, deployment: &deployments::Deployment) -> anyh
             target.status
         );
     }
-    let config = target.docker_config()?;
-
     let spec = snapshot.to_spec(
         projexity_core::ProjectId(deployment.project_id),
         &state.master_key,
     )?;
-    let channel = channel_for(state, target.id, &config)?;
-    let server = DockerServer { channel };
 
-    // Persist provider events as log lines while the deploy runs.
+    // Persist provider events as log lines while the deploy runs (shared by
+    // both provider paths).
     let (events, mut rx) = EventSink::new(projexity_core::DeploymentId(deployment.id));
     let pool = state.pool.clone();
     let log_id = deployment.id;
@@ -126,19 +120,64 @@ async fn execute(state: &AppState, deployment: &deployments::Deployment) -> anyh
         }
     });
 
-    // Git-based release: build the image on the target first.
-    if let Some(repo) = &snapshot.repo {
-        if let Err(e) = build_phase(state, deployment, repo, &snapshot, &server, &events).await {
-            drop(events);
-            let _ = writer.await;
-            return Err(e);
-        }
-    }
-
-    let result = server.deploy_release(&spec, &events).await;
+    let result = match target.kind.as_str() {
+        "k8s_cluster" => deploy_k8s(state, &target, &snapshot, &spec, &events).await,
+        _ => deploy_docker(state, &target, deployment, &snapshot, &spec, &events).await,
+    };
     drop(events);
     let _ = writer.await;
-    result.map_err(|e| anyhow::anyhow!(e))
+    result
+}
+
+/// Docker-server path: optional remote build, then blue/green choreography.
+async fn deploy_docker(
+    state: &AppState,
+    target: &projexity_db::targets::Target,
+    deployment: &deployments::Deployment,
+    snapshot: &ReleaseSnapshot,
+    spec: &projexity_core::ReleaseSpec,
+    events: &EventSink,
+) -> anyhow::Result<String> {
+    let config = target.docker_config()?;
+    let channel = channel_for(state, target.id, &config)?;
+    let server = DockerServer { channel };
+
+    if let Some(repo) = &snapshot.repo {
+        build_phase(state, deployment, repo, snapshot, &server, events).await?;
+    }
+    server
+        .deploy_release(spec, events)
+        .await
+        .map(|container| serde_json::json!({ "container": container }).to_string())
+        .map_err(|e| anyhow::anyhow!(e))
+}
+
+/// Kubernetes path: server-side apply the manifests and watch the rollout.
+/// Git builds aren't supported here yet (they need an in-platform registry so
+/// the cluster can pull the image) — surfaced as a clear error.
+async fn deploy_k8s(
+    state: &AppState,
+    target: &projexity_db::targets::Target,
+    snapshot: &ReleaseSnapshot,
+    spec: &projexity_core::ReleaseSpec,
+    events: &EventSink,
+) -> anyhow::Result<String> {
+    if snapshot.repo.is_some() {
+        anyhow::bail!(
+            "building from a git repo isn't supported on Kubernetes targets yet — deploy a \
+             prebuilt image (a registry the cluster can pull from is coming)"
+        );
+    }
+    let config: projexity_provider_k8s::K8sConfig = serde_json::from_value(target.config.clone())?;
+    let kubeconfig = String::from_utf8(state.master_key.decrypt(&config.kubeconfig_enc)?)?;
+    let provider = projexity_provider_k8s::K8sProvider::new(&kubeconfig, config)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let provider_ref = provider
+        .deploy_release(spec, events)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+    Ok(provider_ref.to_string())
 }
 
 /// Clone → detect plan → pack context → remote build. Streams progress into
@@ -236,6 +275,18 @@ pub async fn destroy(state: &AppState, payload: serde_json::Value) -> anyhow::Re
     let Some(target) = projexity_db::targets::find(&state.pool, target_id).await? else {
         return Ok(()); // target gone; nothing reachable to clean
     };
+    if target.kind == "k8s_cluster" {
+        let config: projexity_provider_k8s::K8sConfig =
+            serde_json::from_value(target.config.clone())?;
+        let kubeconfig = String::from_utf8(state.master_key.decrypt(&config.kubeconfig_enc)?)?;
+        projexity_provider_k8s::K8sProvider::new(&kubeconfig, config)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?
+            .destroy_app(&slug)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        return Ok(());
+    }
     let config = target.docker_config()?;
     let channel = channel_for(state, target.id, &config)?;
     let server = DockerServer { channel };

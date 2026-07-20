@@ -119,29 +119,60 @@ pub async fn runtime_logs(
             err(StatusCode::INTERNAL_SERVER_ERROR, "internal error")
         })?
         .ok_or_else(|| err(StatusCode::NOT_FOUND, "target not found"))?;
-    let config = target
-        .docker_config()
-        .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
-    let channel = channel_for(&state, target.id, &config)
-        .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
-    let server = DockerServer { channel };
 
-    let (lines, guard) = server
-        .runtime_log_stream(&project.slug, 200)
-        .await
-        .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
-
-    let stream = async_stream::stream! {
-        // Keep the SSH forward alive for the lifetime of this stream.
-        let _guard = guard;
-        let mut lines = std::pin::pin!(lines);
-        while let Some(text) = lines.next().await {
-            yield Ok(Event::default().event("log").data(
-                serde_json::json!({ "text": text }).to_string(),
-            ));
+    // Both provider paths produce a boxed line stream; one Sse builder below.
+    let body: futures::stream::BoxStream<'static, Result<Event, Infallible>> = if target.kind
+        == "k8s_cluster"
+    {
+        let cfg: projexity_provider_k8s::K8sConfig = serde_json::from_value(target.config.clone())
+            .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+        let kubeconfig = state
+            .master_key
+            .decrypt(&cfg.kubeconfig_enc)
+            .ok()
+            .and_then(|b| String::from_utf8(b).ok())
+            .ok_or_else(|| err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+        let provider = projexity_provider_k8s::K8sProvider::new(&kubeconfig, cfg)
+            .await
+            .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+        let lines = provider
+            .runtime_logs(&project.slug, 200)
+            .await
+            .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+        async_stream::stream! {
+            let mut lines = std::pin::pin!(lines);
+            while let Some(text) = lines.next().await {
+                yield Ok(Event::default().event("log").data(
+                    serde_json::json!({ "text": text }).to_string(),
+                ));
+            }
+            yield Ok(Event::default().event("end").data("closed"));
         }
-        yield Ok(Event::default().event("end").data("closed"));
+        .boxed()
+    } else {
+        let config = target
+            .docker_config()
+            .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+        let channel = channel_for(&state, target.id, &config)
+            .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "internal error"))?;
+        let server = DockerServer { channel };
+        let (lines, guard) = server
+            .runtime_log_stream(&project.slug, 200)
+            .await
+            .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+        async_stream::stream! {
+            // Keep the SSH forward alive for the lifetime of this stream.
+            let _guard = guard;
+            let mut lines = std::pin::pin!(lines);
+            while let Some(text) = lines.next().await {
+                yield Ok(Event::default().event("log").data(
+                    serde_json::json!({ "text": text }).to_string(),
+                ));
+            }
+            yield Ok(Event::default().event("end").data("closed"));
+        }
+        .boxed()
     };
 
-    Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
+    Ok(Sse::new(body).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
 }

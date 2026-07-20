@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Plus, RefreshCw, Server, Unplug } from "lucide-react";
+import { Boxes, Plus, RefreshCw, Server, Unplug } from "lucide-react";
 import { api, parseBootstrapSteps, type Target } from "../api";
 import { EmptyState } from "../components/EmptyState";
 
@@ -33,9 +33,9 @@ export function TargetsPage() {
             Servers and clusters your apps deploy onto.
           </p>
         </div>
-        <Link to="/targets/new" className="btn-primary shrink-0">
+        <Link to="/targets/connect" className="btn-primary shrink-0">
           <Plus className="h-4 w-4" strokeWidth={1.75} />
-          Connect server
+          Connect target
         </Link>
       </div>
 
@@ -46,9 +46,9 @@ export function TargetsPage() {
             title="No targets connected"
             description="Connect a server over SSH and Projexity will install Docker and a reverse proxy with automatic HTTPS — or point it at your Kubernetes cluster."
             action={
-              <Link to="/targets/new" className="btn-primary">
+              <Link to="/targets/connect" className="btn-primary">
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
-                Connect your first server
+                Connect your first target
               </Link>
             }
           />
@@ -146,24 +146,39 @@ function TargetCard({
   onDelete: () => void;
   onRepair: () => void;
 }) {
-  const facts = target.facts;
+  const isDocker = target.kind === "docker_server";
+  const facts = isDocker ? target.facts : null;
+  const info = target.cluster?.info ?? null;
   const failedStep = parseBootstrapSteps(target.status_detail).find(
     (s) => s.status === "failed",
   );
+  const Icon = isDocker ? Server : Boxes;
+  const meta = isDocker
+    ? `${target.ssh_user}@${target.host}${
+        target.port !== 22 ? `:${target.port}` : ""
+      }`
+    : info
+      ? [
+          `Kubernetes ${info.version}`,
+          `${info.node_count} node${info.node_count === 1 ? "" : "s"}`,
+          target.cluster?.ingress_class || info.ingress_classes.join(", "),
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "Kubernetes cluster";
   return (
     <div className="card card-hover p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.04] text-zinc-400">
-            <Server className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
           </span>
           <div className="min-w-0">
             <h2 className="truncate font-medium tracking-tight text-zinc-100">
               {target.name}
             </h2>
             <p className="mt-0.5 truncate font-mono text-[13px] text-zinc-500">
-              {target.ssh_user}@{target.host}
-              {target.port !== 22 ? `:${target.port}` : ""}
+              {meta}
             </p>
           </div>
         </div>
@@ -184,7 +199,7 @@ function TargetCard({
       )}
 
       <div className="mt-4 flex gap-2">
-        {(target.status === "error" || target.status === "ready") && (
+        {isDocker && (target.status === "error" || target.status === "ready") && (
           <button
             onClick={onRepair}
             className="btn-secondary px-3 py-1.5 text-xs"

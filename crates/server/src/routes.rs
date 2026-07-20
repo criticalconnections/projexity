@@ -19,6 +19,7 @@ pub fn router(state: AppState) -> Router {
             "/targets",
             get(routes_targets::list).post(routes_targets::create),
         )
+        .route("/targets/cluster", post(routes_targets::create_cluster))
         .route(
             "/targets/{id}",
             get(routes_targets::get).delete(routes_targets::delete),

@@ -183,10 +183,20 @@ pub async fn create(
         )
     })?;
 
-    // Instant free domain via sslip.io (or a deterministic name for
-    // hostname-based targets).
-    let config = target.docker_config().map_err(internal)?;
-    let domain = generated_domain(&slug, &config.host);
+    // Instant generated domain: sslip.io for docker servers, `<slug>.<base>`
+    // for clusters (the user's ingress base domain).
+    let domain = if target.kind == "k8s_cluster" {
+        let c: projexity_provider_k8s::K8sConfig =
+            serde_json::from_value(target.config.clone()).map_err(|e| internal(e.into()))?;
+        if c.domain_base.is_empty() {
+            format!("{slug}.{}.svc.cluster.local", c.namespace)
+        } else {
+            format!("{slug}.{}", c.domain_base)
+        }
+    } else {
+        let config = target.docker_config().map_err(internal)?;
+        generated_domain(&slug, &config.host)
+    };
     projects::add_domain(&state.pool, project.id, &domain, true)
         .await
         .map_err(internal)?;

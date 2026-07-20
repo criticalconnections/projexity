@@ -652,7 +652,8 @@ function InstallDialog({
               >
                 {readyTargets.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} ({t.host})
+                    {t.name} (
+                    {t.kind === "docker_server" ? t.host : "Kubernetes cluster"})
                   </option>
                 ))}
               </select>

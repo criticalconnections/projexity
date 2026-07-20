@@ -9,6 +9,8 @@ import { LoginPage } from "./pages/Login";
 import { ProjectsPage } from "./pages/Projects";
 import { TargetsPage } from "./pages/Targets";
 import { ConnectServerPage } from "./pages/ConnectServer";
+import { ConnectClusterPage } from "./pages/ConnectCluster";
+import { ChooseTargetPage } from "./pages/ChooseTarget";
 import { AppsPage } from "./pages/Apps";
 import { DeploymentsPage } from "./pages/Deployments";
 import { NewProjectPage } from "./pages/NewProject";
@@ -66,6 +68,18 @@ const connectServerRoute = createRoute({
   component: ConnectServerPage,
 });
 
+const chooseTargetRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/targets/connect",
+  component: ChooseTargetPage,
+});
+
+const connectClusterRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/targets/new-cluster",
+  component: ConnectClusterPage,
+});
+
 const appsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/apps",
@@ -92,6 +106,8 @@ const routeTree = rootRoute.addChildren([
     projectDetailRoute,
     targetsRoute,
     connectServerRoute,
+    chooseTargetRoute,
+    connectClusterRoute,
     appsRoute,
     deploymentsRoute,
     settingsRoute,

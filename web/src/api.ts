@@ -56,6 +56,22 @@ export interface Issue {
   message: string;
 }
 
+export interface ClusterInfo {
+  version: string;
+  platform: string;
+  node_count: number;
+  ingress_classes: string[];
+  can_deploy: boolean;
+  warnings: string[];
+}
+
+export interface ClusterConfig {
+  namespace: string;
+  ingress_class: string;
+  domain_base: string;
+  info: ClusterInfo | null;
+}
+
 export interface Target {
   id: string;
   name: string;
@@ -63,12 +79,15 @@ export interface Target {
   status: "pending" | "bootstrapping" | "ready" | "error";
   /** JSON-encoded bootstrap step reports. */
   status_detail: string;
-  host: string;
-  port: number;
-  ssh_user: string;
-  public_key: string;
-  setup_command: string;
+  /** Docker-server fields — null for k8s_cluster targets. */
+  host: string | null;
+  port: number | null;
+  ssh_user: string | null;
+  public_key: string | null;
+  setup_command: string | null;
   facts: ServerFacts | null;
+  /** Cluster fields — null for docker_server targets. */
+  cluster: ClusterConfig | null;
   created_at: string;
 }
 
@@ -91,6 +110,15 @@ export interface CreateTargetRequest {
   host: string;
   port?: number;
   ssh_user?: string;
+}
+
+export interface CreateClusterRequest {
+  name: string;
+  kubeconfig: string;
+  namespace?: string;
+  ingress_class?: string;
+  cluster_issuer?: string;
+  domain_base?: string;
 }
 
 export type DeploymentStatus =
@@ -272,6 +300,11 @@ export const api = {
   listTargets: () => request<Target[]>("/targets"),
   createTarget: (body: CreateTargetRequest) =>
     request<Target>("/targets", { method: "POST", body: JSON.stringify(body) }),
+  createCluster: (body: CreateClusterRequest) =>
+    request<Target>("/targets/cluster", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   getTarget: (id: string) => request<Target>(`/targets/${id}`),
   deleteTarget: (id: string) =>
     request<void>(`/targets/${id}`, { method: "DELETE" }),

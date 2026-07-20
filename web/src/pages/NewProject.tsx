@@ -473,7 +473,9 @@ function TargetOption({
             {target.name}
           </span>
           <span className="mt-0.5 block truncate font-mono text-[13px] text-zinc-500">
-            {target.ssh_user}@{target.host}
+            {target.kind === "docker_server"
+              ? `${target.ssh_user}@${target.host}`
+              : "Kubernetes cluster"}
           </span>
         </span>
       </span>

@@ -86,7 +86,7 @@ Cargo workspace + React dashboard:
 - [x] **M3** — Build pipeline: git repo → auto-detected build (Dockerfile, Node, Python, static) on the target's own daemon, live build logs, one-click rollbacks
 - [x] **M4** — GitHub App: register-your-own via manifest flow, private repos, push-to-deploy
 - [x] **M5** — One-click apps: Uptime Kuma, n8n, Vaultwarden, Memos, Actual Budget (Supabase & friends next)
-- [ ] **M6** — Kubernetes provider
+- [x] **M6** — Kubernetes provider: connect a cluster (kubeconfig), deploy images via Deployment + Service + Ingress with server-side apply, rollout watch, pod logs
 - [ ] **M7** — Custom domains UI, docs, launch
 
 ## License
