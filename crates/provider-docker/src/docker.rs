@@ -638,24 +638,47 @@ impl DockerServer {
                 }
             });
         }
-        let config = serde_json::json!({
-            "admin": {"listen": "0.0.0.0:2019"},
-            "apps": apps
-        });
 
+        // Update ONLY the `apps` subtree via the admin API — never `/load`.
+        // A full /load re-declares the admin server, and Caddy's reload can
+        // rebind the admin listener mid-request, dropping the very connection
+        // carrying the POST (and occasionally wedging the admin API). Posting
+        // to /config/apps leaves the admin server (set by the boot Caddyfile)
+        // untouched, so cutover is atomic and safe to repeat.
+        //
+        // curl writes the response body then `\nHTTP_STATUS:<code>`; we parse
+        // the code ourselves (no `-f`, which would hide Caddy's error).
         let out = self
             .channel
             .exec_with_stdin(
-                "curl -sf -X POST -H 'Content-Type: application/json' --data-binary @- \
-                 http://127.0.0.1:2019/load",
-                config.to_string().as_bytes(),
+                "curl -s -w '\\nHTTP_STATUS:%{http_code}' --max-time 20 -X POST \
+                 -H 'Content-Type: application/json' --data-binary @- \
+                 http://127.0.0.1:2019/config/apps",
+                apps.to_string().as_bytes(),
             )
             .await
             .map_err(|e| DeployError::Transport(e.to_string()))?;
-        if !out.success() {
-            return Err(DeployError::CutoverFailed(format!(
-                "Caddy rejected the config: {}",
+
+        let stdout = out.stdout.trim();
+        let code = stdout.rsplit("HTTP_STATUS:").next().unwrap_or("").trim();
+        if !code.starts_with('2') {
+            let body = stdout
+                .rsplit_once("HTTP_STATUS:")
+                .map(|(b, _)| b.trim())
+                .unwrap_or(stdout);
+            let detail = if body.is_empty() {
                 out.stderr.trim()
+            } else {
+                body
+            };
+            return Err(DeployError::CutoverFailed(format!(
+                "the proxy didn't accept the routing update (HTTP {}): {}",
+                if code.is_empty() { "no response" } else { code },
+                if detail.is_empty() {
+                    "no details — the proxy's admin API may be unreachable; try Repair on the server"
+                } else {
+                    detail
+                }
             )));
         }
         Ok(())
