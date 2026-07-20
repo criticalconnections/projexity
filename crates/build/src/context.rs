@@ -22,6 +22,10 @@ const SKIP: &[&str] = &[
 pub fn pack(workdir: &Path, plan: &BuildPlan, limit_bytes: u64) -> Result<Vec<u8>, BuildError> {
     let mut builder = tar::Builder::new(Vec::new());
     builder.follow_symlinks(false);
+    // Never emit GNU sparse entries: Docker's classic build-context extractor
+    // rejects them ("unhandled tar header type 83"). Files that happen to be
+    // sparse on disk (e.g. Bun's bun.lockb) get written as regular files.
+    builder.sparse(false);
 
     append_dir(&mut builder, workdir, Path::new(""))?;
 
@@ -126,5 +130,41 @@ mod tests {
             pack(&dir, &plan, 1000),
             Err(BuildError::ContextTooLarge { .. })
         ));
+    }
+}
+
+#[cfg(test)]
+mod sparse_tests {
+    use super::*;
+
+    /// A sparse file (e.g. Bun's bun.lockb on Linux) must NOT be encoded as a
+    /// GNU sparse entry — Docker's classic build extractor rejects those
+    /// ("unhandled tar header type 83").
+    #[test]
+    fn sparse_files_are_written_as_regular() {
+        use std::fs;
+        use std::io::{Seek, SeekFrom, Write};
+        let dir = std::env::temp_dir().join("pjx-ctx-sparse");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        // Create a file with a hole: write a byte far past the start.
+        let mut f = fs::File::create(dir.join("sparse.bin")).unwrap();
+        f.seek(SeekFrom::Start(1_000_000)).unwrap();
+        f.write_all(b"end").unwrap();
+        f.sync_all().unwrap();
+
+        let plan = BuildPlan::Dockerfile {
+            path: "Dockerfile".into(),
+        };
+        let tarball = pack(&dir, &plan, 50 * 1024 * 1024).unwrap();
+        let mut ar = tar::Archive::new(&tarball[..]);
+        for e in ar.entries().unwrap() {
+            let e = e.unwrap();
+            assert_ne!(
+                e.header().as_bytes()[156],
+                b'S',
+                "sparse entry leaked into build context"
+            );
+        }
     }
 }
