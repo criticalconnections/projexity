@@ -107,7 +107,9 @@ impl ReleaseSnapshot {
 /// apps get a working hostname before the user configures any DNS.
 pub fn generated_domain(slug: &str, host: &str) -> String {
     let ip = match host {
-        "localhost" => Some("127-0-0-1".to_string()),
+        // Local-playground hosts: from the user's browser, "the machine
+        // Docker runs on" is loopback.
+        "localhost" | "host.docker.internal" => Some("127-0-0-1".to_string()),
         h => h
             .parse::<std::net::Ipv4Addr>()
             .ok()
@@ -133,6 +135,10 @@ mod tests {
         );
         assert_eq!(
             generated_domain("myapp", "localhost"),
+            "myapp.127-0-0-1.sslip.io"
+        );
+        assert_eq!(
+            generated_domain("myapp", "host.docker.internal"),
             "myapp.127-0-0-1.sslip.io"
         );
         assert_eq!(
