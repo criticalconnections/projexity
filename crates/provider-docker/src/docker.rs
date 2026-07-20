@@ -566,22 +566,42 @@ impl DockerServer {
             }));
         }
 
-        let config = serde_json::json!({
-            "admin": {"listen": "0.0.0.0:2019"},
-            "apps": {
-                "http": {
-                    "servers": {
-                        "pjx": {
-                            "listen": [":80", ":443"],
-                            // Keep plain HTTP serving the app (no forced
-                            // redirect) so apps work before certificates are
-                            // issued; TLS still auto-provisions per domain.
-                            "automatic_https": {"disable_redirects": true},
-                            "routes": routes
-                        }
+        // Playground domains (sslip.io names embedding loopback/private IPs)
+        // can never get public ACME certificates — issue them from Caddy's
+        // internal CA instead so apps needing a secure context still work.
+        let internal_subjects: Vec<String> = by_recency
+            .iter()
+            .flat_map(|c| c.domains.iter())
+            .filter(|d| needs_internal_tls(d))
+            .cloned()
+            .collect();
+        let mut apps = serde_json::json!({
+            "http": {
+                "servers": {
+                    "pjx": {
+                        "listen": [":80", ":443"],
+                        // Keep plain HTTP serving the app (no forced
+                        // redirect) so apps work before certificates are
+                        // issued; TLS still auto-provisions per domain.
+                        "automatic_https": {"disable_redirects": true},
+                        "routes": routes
                     }
                 }
             }
+        });
+        if !internal_subjects.is_empty() {
+            apps["tls"] = serde_json::json!({
+                "automation": {
+                    "policies": [{
+                        "subjects": internal_subjects,
+                        "issuers": [{"module": "internal"}]
+                    }]
+                }
+            });
+        }
+        let config = serde_json::json!({
+            "admin": {"listen": "0.0.0.0:2019"},
+            "apps": apps
         });
 
         let out = self
@@ -622,6 +642,21 @@ pub fn release_short(release_id: &str) -> String {
     s[s.len().saturating_sub(12)..].to_string()
 }
 
+/// True for hostnames whose certificates must come from the local CA:
+/// sslip.io names embedding a loopback or private IPv4 (dash notation).
+pub fn needs_internal_tls(domain: &str) -> bool {
+    let Some(embedded) = domain.strip_suffix(".sslip.io") else {
+        return false;
+    };
+    let Some(ip_part) = embedded.rsplit('.').next() else {
+        return false;
+    };
+    let Ok(ip) = ip_part.replace('-', ".").parse::<std::net::Ipv4Addr>() else {
+        return false;
+    };
+    ip.is_loopback() || ip.is_private()
+}
+
 pub fn container_name(spec: &ReleaseSpec) -> String {
     format!(
         "pjx-{}-{}",
@@ -633,6 +668,15 @@ pub fn container_name(spec: &ReleaseSpec) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn internal_tls_for_local_sslip_only() {
+        assert!(needs_internal_tls("memos.127-0-0-1.sslip.io"));
+        assert!(needs_internal_tls("app.192-168-1-20.sslip.io"));
+        assert!(needs_internal_tls("app.10-0-0-5.sslip.io"));
+        assert!(!needs_internal_tls("app.203-0-113-7.sslip.io"));
+        assert!(!needs_internal_tls("app.example.com"));
+    }
 
     #[test]
     fn release_short_uses_random_tail() {

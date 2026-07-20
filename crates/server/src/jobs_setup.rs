@@ -58,6 +58,18 @@ pub async fn run(state: &AppState, payload: serde_json::Value) -> anyhow::Result
             )
             .await?;
             projexity_db::targets::set_status(&state.pool, target.id, "ready").await?;
+            // Re-render proxy routes so Repair also reconciles routing/TLS
+            // policy changes (best effort — a fresh server has none yet).
+            let channel = channel_for(state, target.id, &config)?;
+            let server = projexity_provider_docker::docker::DockerServer { channel };
+            match server.docker().await {
+                Ok((docker, _guard)) => {
+                    if let Err(e) = server.sync_caddy(&docker, None).await {
+                        tracing::warn!(?e, "post-bootstrap proxy sync failed");
+                    }
+                }
+                Err(e) => tracing::warn!(?e, "post-bootstrap proxy sync skipped"),
+            }
             tracing::info!(%target_id, "server bootstrap complete");
             Ok(())
         }
