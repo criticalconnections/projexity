@@ -18,12 +18,27 @@ import { timeAgo } from "../time";
  * template catalog below, and a modal install dialog. */
 export function AppsPage() {
   const [installing, setInstalling] = useState<CatalogEntry | null>(null);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
 
   const { data: templates } = useQuery({
     queryKey: ["templates"],
     queryFn: api.listTemplates,
     staleTime: 5 * 60 * 1000,
   });
+
+  const categories = Array.from(
+    new Set((templates ?? []).map((t) => t.category)),
+  ).sort();
+  const q = search.trim().toLowerCase();
+  const visible = (templates ?? []).filter(
+    (t) =>
+      (!category || t.category === category) &&
+      (!q ||
+        t.name.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q)),
+  );
 
   const { data: apps, isLoading: appsLoading } = useQuery({
     queryKey: ["apps"],
@@ -69,16 +84,52 @@ export function AppsPage() {
       )}
 
       <section className="mt-10">
-        <h2 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-          Catalog
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+            Catalog
+          </h2>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search apps…"
+            spellCheck={false}
+            className="input w-56 py-1.5"
+          />
+        </div>
         {!hasApps && !appsLoading && (
           <p className="mt-1 text-sm text-zinc-500">
             Apps you install appear here with their live URLs.
           </p>
         )}
-        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(templates ?? []).map((t, i) => (
+        {categories.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setCategory(null)}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition ${
+                category === null
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                  : "border-white/[0.08] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+              }`}
+            >
+              All
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(category === c ? null : c)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition ${
+                  category === c
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                    : "border-white/[0.08] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((t, i) => (
             <CatalogCard
               key={t.id}
               entry={t}
@@ -87,6 +138,11 @@ export function AppsPage() {
             />
           ))}
         </div>
+        {visible.length === 0 && (templates ?? []).length > 0 && (
+          <p className="mt-6 text-sm text-zinc-500">
+            Nothing matches “{search}” — try a different search.
+          </p>
+        )}
       </section>
 
       <AnimatePresence>

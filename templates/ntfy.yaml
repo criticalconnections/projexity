@@ -1,0 +1,22 @@
+id: ntfy
+name: ntfy
+description: Send push notifications to your phone or desktop with a simple HTTP call.
+category: automation
+icon: "/app-icons/ntfy.png"
+website: https://ntfy.sh
+env: []
+web:
+  - service: ntfy
+    port: 80
+compose:
+  services:
+    ntfy:
+      image: binwiederhier/ntfy:latest
+      command: serve
+      environment:
+        NTFY_BASE_URL: "https://{{DOMAIN_ntfy}}"
+        NTFY_LISTEN_HTTP: ":80"
+      volumes:
+        - ntfy_cache:/var/cache/ntfy
+  volumes:
+    ntfy_cache: {}

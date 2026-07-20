@@ -1,0 +1,27 @@
+id: linkding
+name: linkding
+description: Minimal, fast bookmark manager you can self-host and search.
+category: productivity
+icon: "/app-icons/linkding.svg"
+website: https://linkding.link
+env:
+  - key: LD_SUPERUSER_NAME
+    label: Admin username
+    default: "admin"
+  - key: LD_SUPERUSER_PASSWORD
+    label: Admin password
+    required: true
+web:
+  - service: linkding
+    port: 9090
+compose:
+  services:
+    linkding:
+      image: sissbruecker/linkding:latest
+      environment:
+        LD_SUPERUSER_NAME: "{{LD_SUPERUSER_NAME}}"
+        LD_SUPERUSER_PASSWORD: "{{LD_SUPERUSER_PASSWORD}}"
+      volumes:
+        - linkding_data:/etc/linkding/data
+  volumes:
+    linkding_data: {}

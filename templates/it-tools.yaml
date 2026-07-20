@@ -1,0 +1,14 @@
+id: it-tools
+name: IT-Tools
+description: A collection of 80+ handy developer tools in one place.
+category: developer
+icon: "🧰"
+website: https://it-tools.tech
+env: []
+web:
+  - service: ittools
+    port: 80
+compose:
+  services:
+    ittools:
+      image: corentinth/it-tools:latest

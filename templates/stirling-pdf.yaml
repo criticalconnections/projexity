@@ -1,0 +1,18 @@
+id: stirling-pdf
+name: Stirling PDF
+description: Your own PDF toolbox — merge, split, convert, sign, OCR, 100+ tools.
+category: productivity
+icon: "/app-icons/stirling-pdf.png"
+website: https://stirlingpdf.com
+env: []
+web:
+  - service: stirling
+    port: 8080
+compose:
+  services:
+    stirling:
+      image: frooodle/s-pdf:latest
+      volumes:
+        - stirling_configs:/configs
+  volumes:
+    stirling_configs: {}

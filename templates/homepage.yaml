@@ -1,0 +1,20 @@
+id: homepage
+name: Homepage
+description: A sleek startpage/dashboard for all your services and servers.
+category: productivity
+icon: "/app-icons/homepage.png"
+website: https://gethomepage.dev
+env: []
+web:
+  - service: homepage
+    port: 3000
+compose:
+  services:
+    homepage:
+      image: ghcr.io/gethomepage/homepage:latest
+      environment:
+        HOMEPAGE_ALLOWED_HOSTS: "{{DOMAIN_homepage}}"
+      volumes:
+        - homepage_config:/app/config
+  volumes:
+    homepage_config: {}

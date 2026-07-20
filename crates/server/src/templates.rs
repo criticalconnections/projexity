@@ -328,6 +328,41 @@ compose:
     }
 
     #[test]
+    fn every_repo_template_loads_and_renders() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../templates");
+        let templates = load_all(&dir).unwrap();
+        assert!(
+            templates.len() >= 20,
+            "expected the template library, found {}",
+            templates.len()
+        );
+        for t in &templates {
+            // Fill required user fields with a dummy value.
+            let user: BTreeMap<String, String> = t
+                .env
+                .iter()
+                .filter(|e| e.required && e.generate.is_none())
+                .map(|e| (e.key.clone(), "dummy-value".to_string()))
+                .collect();
+            let env = resolve_env(t, &user)
+                .unwrap_or_else(|e| panic!("{}: env resolution failed: {e}", t.id));
+            let domains = assign_domains(t, "testapp", "203.0.113.7");
+            let yaml = render_compose(t, "testapp", &env, &domains)
+                .unwrap_or_else(|e| panic!("{}: render failed: {e}", t.id));
+            assert!(!yaml.contains("{{"), "{}: unresolved variables", t.id);
+            assert!(!t.web.is_empty(), "{}: no web services", t.id);
+            for w in &t.web {
+                assert!(
+                    yaml.contains(&format!("pjx-testapp-{}", w.service)),
+                    "{}: web service {} not routed",
+                    t.id,
+                    w.service
+                );
+            }
+        }
+    }
+
+    #[test]
     fn unresolved_variable_fails_loudly() {
         let mut t = sample();
         t.env.retain(|e| e.key != "SECRET");

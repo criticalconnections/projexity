@@ -1,0 +1,22 @@
+id: freshrss
+name: FreshRSS
+description: A free, self-hosted RSS reader that keeps you in control of your feeds.
+category: media
+icon: "/app-icons/freshrss.png"
+website: https://freshrss.org
+env: []
+web:
+  - service: freshrss
+    port: 80
+compose:
+  services:
+    freshrss:
+      image: freshrss/freshrss:latest
+      environment:
+        CRON_MIN: "1,31"
+      volumes:
+        - freshrss_data:/var/www/FreshRSS/data
+        - freshrss_extensions:/var/www/FreshRSS/extensions
+  volumes:
+    freshrss_data: {}
+    freshrss_extensions: {}

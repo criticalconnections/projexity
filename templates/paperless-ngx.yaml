@@ -1,0 +1,45 @@
+id: paperless-ngx
+name: Paperless-ngx
+description: Scan, index, and archive your documents — a searchable paperless office.
+category: productivity
+icon: "/app-icons/paperless-ngx.png"
+website: https://docs.paperless-ngx.com
+env:
+  - key: PAPERLESS_SECRET_KEY
+    generate: hex32
+  - key: PAPERLESS_ADMIN_USER
+    label: Admin username
+    default: "admin"
+  - key: PAPERLESS_ADMIN_PASSWORD
+    label: Admin password
+    required: true
+web:
+  - service: paperless
+    port: 8000
+compose:
+  services:
+    paperless:
+      image: ghcr.io/paperless-ngx/paperless-ngx:latest
+      environment:
+        PAPERLESS_REDIS: redis://broker:6379
+        PAPERLESS_URL: "https://{{DOMAIN_paperless}}"
+        PAPERLESS_SECRET_KEY: "{{PAPERLESS_SECRET_KEY}}"
+        PAPERLESS_ADMIN_USER: "{{PAPERLESS_ADMIN_USER}}"
+        PAPERLESS_ADMIN_PASSWORD: "{{PAPERLESS_ADMIN_PASSWORD}}"
+      depends_on:
+        - broker
+      volumes:
+        - paperless_data:/usr/src/paperless/data
+        - paperless_media:/usr/src/paperless/media
+        - paperless_export:/usr/src/paperless/export
+        - paperless_consume:/usr/src/paperless/consume
+    broker:
+      image: redis:7-alpine
+      volumes:
+        - paperless_redis:/data
+  volumes:
+    paperless_data: {}
+    paperless_media: {}
+    paperless_export: {}
+    paperless_consume: {}
+    paperless_redis: {}

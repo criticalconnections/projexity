@@ -1,0 +1,20 @@
+id: changedetection
+name: changedetection.io
+description: Watch any website for changes and get notified.
+category: automation
+icon: "🔍"
+website: https://changedetection.io
+env: []
+web:
+  - service: changedetection
+    port: 5000
+compose:
+  services:
+    changedetection:
+      image: ghcr.io/dgtlmoon/changedetection.io:latest
+      environment:
+        BASE_URL: "https://{{DOMAIN_changedetection}}"
+      volumes:
+        - changedetection_data:/datastore
+  volumes:
+    changedetection_data: {}

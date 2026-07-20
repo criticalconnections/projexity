@@ -1,0 +1,23 @@
+id: code-server
+name: code-server
+description: VS Code in your browser, running on your own server.
+category: developer
+icon: "/app-icons/code-server.png"
+website: https://coder.com
+env:
+  - key: PASSWORD
+    label: Access password
+    required: true
+web:
+  - service: code
+    port: 8080
+compose:
+  services:
+    code:
+      image: codercom/code-server:latest
+      environment:
+        PASSWORD: "{{PASSWORD}}"
+      volumes:
+        - code_data:/home/coder
+  volumes:
+    code_data: {}

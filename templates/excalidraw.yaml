@@ -1,0 +1,14 @@
+id: excalidraw
+name: Excalidraw
+description: Virtual whiteboard for sketching hand-drawn diagrams together.
+category: productivity
+icon: "/app-icons/excalidraw.png"
+website: https://excalidraw.com
+env: []
+web:
+  - service: excalidraw
+    port: 80
+compose:
+  services:
+    excalidraw:
+      image: excalidraw/excalidraw:latest

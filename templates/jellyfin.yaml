@@ -1,0 +1,24 @@
+id: jellyfin
+name: Jellyfin
+description: Your own streaming server for movies, shows, and music.
+category: media
+icon: "/app-icons/jellyfin.png"
+website: https://jellyfin.org
+env: []
+web:
+  - service: jellyfin
+    port: 8096
+compose:
+  services:
+    jellyfin:
+      image: jellyfin/jellyfin:latest
+      environment:
+        JELLYFIN_PublishedServerUrl: "https://{{DOMAIN_jellyfin}}"
+      volumes:
+        - jellyfin_config:/config
+        - jellyfin_cache:/cache
+        - jellyfin_media:/media
+  volumes:
+    jellyfin_config: {}
+    jellyfin_cache: {}
+    jellyfin_media: {}

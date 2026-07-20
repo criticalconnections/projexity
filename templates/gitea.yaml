@@ -1,0 +1,21 @@
+id: gitea
+name: Gitea
+description: Lightweight self-hosted Git service — repos, issues, PRs, actions.
+category: developer
+icon: "/app-icons/gitea.png"
+website: https://gitea.com
+env: []
+web:
+  - service: gitea
+    port: 3000
+compose:
+  services:
+    gitea:
+      image: gitea/gitea:latest
+      environment:
+        GITEA__server__ROOT_URL: "https://{{DOMAIN_gitea}}/"
+        GITEA__server__DOMAIN: "{{DOMAIN_gitea}}"
+      volumes:
+        - gitea_data:/data
+  volumes:
+    gitea_data: {}

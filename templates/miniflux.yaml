@@ -1,0 +1,41 @@
+id: miniflux
+name: Miniflux
+description: Minimalist, opinionated RSS reader — fast, no clutter.
+category: media
+icon: "/app-icons/miniflux.png"
+website: https://miniflux.app
+env:
+  - key: DB_PASSWORD
+    generate: hex16
+  - key: ADMIN_USERNAME
+    label: Admin username
+    default: "admin"
+  - key: ADMIN_PASSWORD
+    label: Admin password
+    required: true
+web:
+  - service: miniflux
+    port: 8080
+compose:
+  services:
+    miniflux:
+      image: miniflux/miniflux:latest
+      environment:
+        DATABASE_URL: "postgres://miniflux:{{DB_PASSWORD}}@db/miniflux?sslmode=disable"
+        RUN_MIGRATIONS: "1"
+        CREATE_ADMIN: "1"
+        ADMIN_USERNAME: "{{ADMIN_USERNAME}}"
+        ADMIN_PASSWORD: "{{ADMIN_PASSWORD}}"
+        BASE_URL: "https://{{DOMAIN_miniflux}}"
+      depends_on:
+        - db
+    db:
+      image: postgres:15-alpine
+      environment:
+        POSTGRES_DB: miniflux
+        POSTGRES_USER: miniflux
+        POSTGRES_PASSWORD: "{{DB_PASSWORD}}"
+      volumes:
+        - miniflux_db:/var/lib/postgresql/data
+  volumes:
+    miniflux_db: {}
