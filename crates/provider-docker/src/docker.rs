@@ -161,7 +161,7 @@ impl DockerServer {
     ) -> Result<String, DeployError> {
         let (docker, _guard) = self.docker().await?;
         let name = container_name(spec);
-        let port = spec.ports.first().map(|p| p.container_port).unwrap_or(80);
+        let mut port = spec.ports.first().map(|p| p.container_port).unwrap_or(80);
         let domains: Vec<String> = spec.domains.iter().map(|d| d.hostname.clone()).collect();
 
         events.step_started("pull");
@@ -184,6 +184,24 @@ impl DockerServer {
             }
         }
         events.step_completed("pull");
+
+        // Route to the image's exposed port when the project is still on the
+        // default 80 but the image clearly listens elsewhere (a Bun/Vite dev
+        // server on 8665, a Rails app on 3000, …). Only kicks in for the
+        // untouched default; an explicitly chosen port is always honored.
+        if port == 80 {
+            if let Some(exposed) = self
+                .image_single_exposed_port(&docker, &spec.image.name)
+                .await
+            {
+                if exposed != 80 {
+                    events.progress(format!(
+                        "the image exposes port {exposed}, not 80 — routing traffic there"
+                    ));
+                    port = exposed;
+                }
+            }
+        }
 
         // Start green (skip if it already exists from a crashed attempt).
         events.step_started("start");
@@ -457,6 +475,27 @@ impl DockerServer {
             }
         }
         Ok(())
+    }
+
+    /// The single TCP port an image EXPOSEs, if it exposes exactly one — used
+    /// to auto-route when the project is on the default port. Ambiguous (zero
+    /// or several) returns None so we keep the configured port.
+    async fn image_single_exposed_port(&self, docker: &Docker, image: &str) -> Option<u16> {
+        let inspect = docker.inspect_image(image).await.ok()?;
+        let exposed = inspect.config?.exposed_ports?;
+        let mut tcp_ports: Vec<u16> = exposed
+            .keys()
+            .filter_map(|k| {
+                let (num, proto) = k.split_once('/').unwrap_or((k.as_str(), "tcp"));
+                (proto == "tcp").then(|| num.parse().ok()).flatten()
+            })
+            .collect();
+        tcp_ports.sort_unstable();
+        tcp_ports.dedup();
+        match tcp_ports.as_slice() {
+            [single] => Some(*single),
+            _ => None,
+        }
     }
 
     async fn container_log_tail(&self, docker: &Docker, name: &str, lines: i64) -> String {
